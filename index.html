@@ -425,11 +425,21 @@
 </head>
 <body>
 
+<!-- ══ LOADING ══ -->
+<div id="screen-loading" class="screen" style="align-items:center;justify-content:center;background:#fff;">
+  <div style="display:flex;flex-direction:column;align-items:center;gap:1.2rem;padding:2rem;">
+    <div style="font-family:'Syne',sans-serif;font-size:1.1rem;font-weight:800;color:#1a1a1a;letter-spacing:-0.3px;">DAILY QUIZ</div>
+    <div style="width:40px;height:40px;border:3px solid #f0f0f0;border-top-color:#1a1a1a;border-radius:50%;animation:spin 0.7s linear infinite;"></div>
+    <div id="loading-msg" style="font-size:0.78rem;color:#888;font-weight:600;letter-spacing:0.04em;">Loading...</div>
+  </div>
+</div>
+<style>@keyframes spin{to{transform:rotate(360deg)}}</style>
+
 <!-- ══ SETUP ══ -->
 <div id="screen-setup" class="screen">
   <div class="setup-card">
     <h1>Daily Quiz</h1>
-    <p>No vocabulary data found. Paste your Google Apps Script Web App URL below to load your vocabulary.</p>
+    <p>Enter your Google Apps Script Web App URL to load your vocabulary. Once entered, all other devices will connect automatically — you only need to do this once.</p>
     <label class="field-label">Apps Script Web App URL</label>
     <input id="setup-url" class="text-input" type="text" placeholder="https://script.google.com/macros/s/.../exec">
     <button class="btn-primary" onclick="fetchSheet(false, false)">Fetch Vocabulary</button>
@@ -706,72 +716,68 @@ function saveSession()  { localStorage.setItem(SESSION_KEY, JSON.stringify({day:
 // CLOUD SYNC
 // ══════════════════════════════════════════════════
 
-// Build the progress payload to push to the cloud
+// Build progress payload (word progress keyed by English)
 function buildProgressPayload() {
-  // Word progress keyed by english (stable across vocab updates)
   const wordProgress = {};
   vocabData.forEach(w => {
     if (!w.english) return;
-    const key = w.english.trim();
-    wordProgress[key] = {
-      tested:         w.tested        || false,
-      testedDate:     w.testedDate    || '',
-      incorrectCount: w.incorrectCount|| 0,
-      count:          w.count         || 0
+    wordProgress[w.english.trim()] = {
+      tested:         w.tested         || false,
+      testedDate:     w.testedDate     || '',
+      incorrectCount: w.incorrectCount || 0,
+      count:          w.count          || 0
     };
   });
+  return { day: session.day, history: session.history, wordProgress, savedAt: new Date().toISOString() };
+}
+
+// Build config payload — includes sheetUrl so new devices can bootstrap
+function buildConfigPayload() {
   return {
-    day:          session.day,
-    history:      session.history,
-    wordProgress,
+    sheetUrl:     config.sheetUrl,
+    direction:    config.direction,
+    wordsPerQuiz: config.wordsPerQuiz,
+    timeoutMin:   config.timeoutMin,
+    activeTag:    config.activeTag,
     savedAt:      new Date().toISOString()
   };
 }
 
-// Merge cloud progress into local state (last-write-wins per word by testedDate)
+// Merge cloud progress into local state
 function mergeCloudProgress(cloud) {
   if (!cloud) return;
-
-  // Merge session fields — cloud wins if it is ahead
   if ((cloud.day || 0) > session.day) session.day = cloud.day;
-
-  // Merge history — union by date+elapsed key, deduplicate
   if (Array.isArray(cloud.history) && cloud.history.length > 0) {
     const localKeys = new Set(session.history.map(h => h.date + '_' + h.elapsed));
     cloud.history.forEach(h => {
       const k = h.date + '_' + h.elapsed;
       if (!localKeys.has(k)) { session.history.push(h); localKeys.add(k); }
     });
-    // Keep sorted by date
     session.history.sort((a, b) => (a.date > b.date ? 1 : -1));
   }
-
-  // Merge per-word progress
   if (cloud.wordProgress) {
     vocabData.forEach(w => {
       if (!w.english) return;
-      const key   = w.english.trim();
-      const cloud_w = cloud.wordProgress[key];
-      if (!cloud_w) return;
-
-      // For testedDate: pick the more recent one
-      const localDate = w.testedDate || '';
-      const cloudDate = cloud_w.testedDate || '';
-      if (cloudDate > localDate) {
-        w.tested         = cloud_w.tested;
-        w.testedDate     = cloud_w.testedDate;
-        w.incorrectCount = cloud_w.incorrectCount;
+      const cw = cloud.wordProgress[w.english.trim()];
+      if (!cw) return;
+      if ((cw.testedDate || '') > (w.testedDate || '')) {
+        w.tested = cw.tested; w.testedDate = cw.testedDate; w.incorrectCount = cw.incorrectCount;
       }
-      // For count: take the higher value (more mistakes = more reliable signal)
-      if ((cloud_w.count || 0) > (w.count || 0)) {
-        w.count = cloud_w.count;
-      }
+      if ((cw.count || 0) > (w.count || 0)) w.count = cw.count;
     });
   }
+  saveVocab(); saveSession();
+}
 
-  // Persist merged state locally
-  saveVocab();
-  saveSession();
+// Merge cloud config into local — including sheetUrl so new devices bootstrap automatically
+function mergeCloudConfig(cc) {
+  if (!cc) return;
+  if (cc.sheetUrl)     config.sheetUrl     = cc.sheetUrl;
+  if (cc.direction)    config.direction    = cc.direction;
+  if (cc.wordsPerQuiz) config.wordsPerQuiz = cc.wordsPerQuiz;
+  if (cc.timeoutMin)   config.timeoutMin   = cc.timeoutMin;
+  if (cc.activeTag)    config.activeTag    = cc.activeTag;
+  saveConfigLS();
 }
 
 function setSyncBar(state, msg) {
@@ -786,17 +792,23 @@ function setSyncBar(state, msg) {
   }
 }
 
-// Pull progress from cloud and merge
+// Pull both progress AND config from cloud, then merge
 async function pullProgress() {
   if (!config.sheetUrl) return;
   setSyncBar('syncing', 'Syncing from cloud...');
   try {
-    const url = config.sheetUrl + '?action=progress&t=' + Date.now();
-    const res  = await fetch(url);
-    if (!res.ok) throw new Error('HTTP ' + res.status);
-    const json = await res.json();
-    if (json.progress) {
-      mergeCloudProgress(json.progress);
+    const base = config.sheetUrl;
+    const [pRes, cRes] = await Promise.all([
+      fetch(base + '?action=progress&t=' + Date.now()),
+      fetch(base + '?action=config&t='   + Date.now())
+    ]);
+    if (pRes.ok) {
+      const pJson = await pRes.json();
+      if (pJson.progress) mergeCloudProgress(pJson.progress);
+    }
+    if (cRes.ok) {
+      const cJson = await cRes.json();
+      if (cJson.config) mergeCloudConfig(cJson.config);
     }
     setSyncBar('synced', '✓ Synced ' + new Date().toLocaleTimeString());
     renderHomeSummary();
@@ -806,20 +818,26 @@ async function pullProgress() {
   }
 }
 
-// Push progress to cloud
+// Push progress to cloud (fire-and-forget)
 async function pushProgress() {
   if (!config.sheetUrl) return;
   try {
-    const payload = buildProgressPayload();
     await fetch(config.sheetUrl, {
-      method:  'POST',
-      headers: { 'Content-Type': 'text/plain' },
-      body:    JSON.stringify(payload)
+      method: 'POST', headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({ type: 'progress', data: buildProgressPayload() })
     });
-  } catch (e) {
-    // Silent fail on push — local data is still safe
-    console.warn('Cloud push failed:', e.message);
-  }
+  } catch (e) { console.warn('Progress push failed:', e.message); }
+}
+
+// Push config to cloud (fire-and-forget)
+async function pushConfig() {
+  if (!config.sheetUrl) return;
+  try {
+    await fetch(config.sheetUrl, {
+      method: 'POST', headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({ type: 'config', data: buildConfigPayload() })
+    });
+  } catch (e) { console.warn('Config push failed:', e.message); }
 }
 
 // ══════════════════════════════════════════════════
@@ -828,13 +846,41 @@ async function pushProgress() {
 loadAll();
 document.getElementById('btn-save-config').onclick = saveConfigAction;
 
-if (vocabData.length === 0) {
+async function bootstrap() {
+  // Case 1: we already have a URL and vocab locally → go straight home
+  if (config.sheetUrl && vocabData.length > 0) {
+    showHome();
+    setTimeout(pullProgress, 400);
+    return;
+  }
+
+  // Case 2: no URL locally → try fetching config.json from same GitHub origin
+  if (!config.sheetUrl) {
+    showScreen('loading');
+    try {
+      const res  = await fetch('./config.json?t=' + Date.now());
+      if (res.ok) {
+        const json = await res.json();
+        if (json.sheetUrl) {
+          config.sheetUrl = json.sheetUrl;
+          saveConfigLS();
+        }
+      }
+    } catch(e) { /* config.json not present — fall through to setup */ }
+  }
+
+  // Case 3: have URL (from config.json or existing local) but no vocab → auto-fetch
+  if (config.sheetUrl && vocabData.length === 0) {
+    showScreen('loading');
+    await fetchSheet(false, false, true /* silent */);
+    return;
+  }
+
+  // Case 4: still no URL → show setup screen for manual entry
   showScreen('setup');
-} else {
-  showHome();
-  // Pull cloud progress after a short delay so UI renders first
-  setTimeout(pullProgress, 400);
 }
+
+bootstrap();
 
 // ══════════════════════════════════════════════════
 // NAVIGATION
@@ -929,14 +975,21 @@ function renderHomeSummary() {
 // ══════════════════════════════════════════════════
 // FETCH VOCAB
 // ══════════════════════════════════════════════════
-async function fetchSheet(fromConfig, preserveAppData) {
+async function fetchSheet(fromConfig, preserveAppData, silent) {
   const rawUrl = fromConfig
     ? document.getElementById('cfg-url').value.trim()
-    : document.getElementById('setup-url').value.trim();
+    : (silent ? config.sheetUrl : document.getElementById('setup-url').value.trim());
   if (!rawUrl) { showToast('Please enter the Apps Script URL'); return; }
   if (!rawUrl.includes('script.google.com')) { showToast('Needs a script.google.com /exec URL'); return; }
+
   let bar, msg, wrap;
-  if (!fromConfig) {
+  if (silent) {
+    // Use the loading screen — just update the message text
+    const lm = document.getElementById('loading-msg');
+    bar  = { style: {} };   // dummy — we won't update a progress bar
+    msg  = { set textContent(v){ if(lm) lm.textContent = v; } };
+    wrap = { classList: { remove(){}, add(){} } };
+  } else if (!fromConfig) {
     wrap=document.getElementById('setup-progress');
     bar=document.getElementById('setup-bar');
     msg=document.getElementById('setup-msg');
@@ -945,7 +998,8 @@ async function fetchSheet(fromConfig, preserveAppData) {
     bar=document.getElementById('refetch-bar');
     msg=document.getElementById('refetch-msg');
   }
-  wrap.classList.remove('hidden'); bar.style.width='20%'; msg.textContent='Connecting...';
+  if (!silent) wrap.classList.remove('hidden');
+  bar.style.width='20%'; msg.textContent='Connecting...';
   try {
     bar.style.width='45%'; msg.textContent='Fetching vocab...';
     const res  = await fetch(rawUrl + '?action=vocab&t=' + Date.now());
@@ -983,20 +1037,30 @@ async function fetchSheet(fromConfig, preserveAppData) {
       });
     }
     vocabData = newData; config.sheetUrl = rawUrl; saveConfigLS(); saveVocab();
-    bar.style.width='85%'; msg.textContent='Syncing progress from cloud...';
-    // Also pull cloud progress right after fetching vocab
+    bar.style.width='85%'; msg.textContent='Syncing from cloud...';
+    // Pull progress + config from cloud right after fetching vocab
     try {
-      const pres  = await fetch(rawUrl + '?action=progress&t=' + Date.now());
-      const pjson = await pres.json();
-      if (pjson.progress) mergeCloudProgress(pjson.progress);
-    } catch(pe) { /* silent */ }
+      const [pRes, cRes] = await Promise.all([
+        fetch(rawUrl + '?action=progress&t=' + Date.now()),
+        fetch(rawUrl + '?action=config&t='   + Date.now())
+      ]);
+      if (pRes.ok) { const pj = await pRes.json(); if (pj.progress) mergeCloudProgress(pj.progress); }
+      if (cRes.ok) { const cj = await cRes.json(); if (cj.config)   mergeCloudConfig(cj.config); }
+    } catch(pe) { /* silent — vocab is loaded, sync can retry later */ }
     bar.style.width='100%';
     msg.textContent = `✓ Loaded ${vocabData.length} words!`;
-    if (!fromConfig) { setTimeout(()=>showHome(), 900); }
+    // Push config (including sheetUrl) so other devices can bootstrap without entering it
+    pushConfig();
+    if (silent || !fromConfig) { setTimeout(()=>showHome(), silent ? 0 : 900); }
     else { showToast(`✓ Re-fetched ${vocabData.length} words`); }
   } catch(e) {
     bar.style.width='0%';
-    msg.textContent = `✗ ${e.message}. Check: (1) deployed as Web App, (2) access=Anyone, (3) /exec URL.`;
+    if (silent) {
+      // Auto-fetch failed — fall back to setup screen
+      showScreen('setup');
+    } else {
+      msg.textContent = `✗ ${e.message}. Check: (1) deployed as Web App, (2) access=Anyone, (3) /exec URL.`;
+    }
   }
 }
 async function refetchSheet() { await fetchSheet(true, true); }
@@ -1138,13 +1202,16 @@ function saveConfigAction() {
   config.direction    = document.getElementById('cfg-direction').value;
   config.wordsPerQuiz = Math.max(1, parseInt(document.getElementById('cfg-words').value)||15);
   config.timeoutMin   = Math.min(60, Math.max(1, parseInt(document.getElementById('cfg-timeout').value)||15));
-  saveConfigLS(); showToast('Config saved'); setTimeout(()=>showHome(), 500);
+  saveConfigLS();
+  // Push quiz settings (not sheetUrl) to cloud so other devices pick them up
+  pushConfig();
+  showToast('Config saved'); setTimeout(()=>showHome(), 500);
 }
 function resetRecords() {
   if (!confirm('Reset all tested flags, incorrect counts and quiz history? This cannot be undone.')) return;
   vocabData.forEach(w=>{ w.tested=false; w.testedDate=''; w.incorrectCount=0; w.count=0; });
   session.history=[]; session.day=1; saveVocab(); saveSession();
-  // Also wipe cloud progress
+  // Push wiped state to cloud so all devices are reset
   pushProgress();
   showToast('All records reset'); setTimeout(()=>showHome(), 500);
 }
