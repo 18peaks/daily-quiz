@@ -847,37 +847,55 @@ loadAll();
 document.getElementById('btn-save-config').onclick = saveConfigAction;
 
 async function bootstrap() {
-  // Case 1: we already have a URL and vocab locally → go straight home
-  if (config.sheetUrl && vocabData.length > 0) {
-    showHome();
-    setTimeout(pullProgress, 400);
-    return;
-  }
-
-  // Case 2: no URL locally → try fetching config.json from same GitHub origin
+  // ── Step 1: If no local URL, get it from config.json in GitHub ──
   if (!config.sheetUrl) {
     showScreen('loading');
+    setLoadingMsg('Connecting...');
     try {
-      const res  = await fetch('./config.json?t=' + Date.now());
+      const res = await fetch('./config.json?t=' + Date.now());
       if (res.ok) {
         const json = await res.json();
-        if (json.sheetUrl) {
+        if (json.sheetUrl && !json.sheetUrl.includes('PASTE_YOUR')) {
           config.sheetUrl = json.sheetUrl;
           saveConfigLS();
+          setLoadingMsg('Found config...');
         }
       }
-    } catch(e) { /* config.json not present — fall through to setup */ }
+    } catch(e) { /* config.json missing — will fall to setup */ }
   }
 
-  // Case 3: have URL (from config.json or existing local) but no vocab → auto-fetch
-  if (config.sheetUrl && vocabData.length === 0) {
-    showScreen('loading');
-    await fetchSheet(false, false, true /* silent */);
+  // ── Step 2: Still no URL → show setup screen ──
+  if (!config.sheetUrl) {
+    showScreen('setup');
     return;
   }
 
-  // Case 4: still no URL → show setup screen for manual entry
-  showScreen('setup');
+  // ── Step 3: Have URL — pull cloud config first (gets quiz settings) ──
+  showScreen('loading');
+  setLoadingMsg('Syncing settings...');
+  try {
+    const cRes = await fetch(config.sheetUrl + '?action=config&t=' + Date.now());
+    if (cRes.ok) {
+      const cJson = await cRes.json();
+      if (cJson.config) mergeCloudConfig(cJson.config);
+    }
+  } catch(e) { /* silent — proceed with local config */ }
+
+  // ── Step 4: Have vocab locally → go home and sync in background ──
+  if (vocabData.length > 0) {
+    showHome();
+    setTimeout(pullProgress, 300);
+    return;
+  }
+
+  // ── Step 5: No local vocab → fetch from sheet (also syncs progress) ──
+  setLoadingMsg('Loading vocabulary...');
+  await fetchSheet(false, false, true /* silent */);
+}
+
+function setLoadingMsg(msg) {
+  const el = document.getElementById('loading-msg');
+  if (el) el.textContent = msg;
 }
 
 bootstrap();
