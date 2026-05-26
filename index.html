@@ -818,25 +818,21 @@ async function pullProgress() {
   }
 }
 
-// Push progress to cloud (fire-and-forget)
+// Push progress to cloud via GET (avoids CORS issues with POST)
 async function pushProgress() {
   if (!config.sheetUrl) return;
   try {
-    await fetch(config.sheetUrl, {
-      method: 'POST', headers: { 'Content-Type': 'text/plain' },
-      body: JSON.stringify({ type: 'progress', data: buildProgressPayload() })
-    });
+    const data = encodeURIComponent(JSON.stringify(buildProgressPayload()));
+    await fetch(config.sheetUrl + '?action=saveProgress&data=' + data);
   } catch (e) { console.warn('Progress push failed:', e.message); }
 }
 
-// Push config to cloud (fire-and-forget)
+// Push config to cloud via GET (avoids CORS issues with POST)
 async function pushConfig() {
   if (!config.sheetUrl) return;
   try {
-    await fetch(config.sheetUrl, {
-      method: 'POST', headers: { 'Content-Type': 'text/plain' },
-      body: JSON.stringify({ type: 'config', data: buildConfigPayload() })
-    });
+    const data = encodeURIComponent(JSON.stringify(buildConfigPayload()));
+    await fetch(config.sheetUrl + '?action=saveConfig&data=' + data);
   } catch (e) { console.warn('Config push failed:', e.message); }
 }
 
