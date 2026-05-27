@@ -427,10 +427,12 @@
 
 <!-- ══ LOADING ══ -->
 <div id="screen-loading" class="screen" style="align-items:center;justify-content:center;background:#fff;">
-  <div style="display:flex;flex-direction:column;align-items:center;gap:1.2rem;padding:2rem;">
+  <div style="display:flex;flex-direction:column;align-items:center;gap:1rem;padding:2rem;width:100%;max-width:430px;">
     <div style="font-family:'Syne',sans-serif;font-size:1.1rem;font-weight:800;color:#1a1a1a;letter-spacing:-0.3px;">DAILY QUIZ</div>
     <div style="width:40px;height:40px;border:3px solid #f0f0f0;border-top-color:#1a1a1a;border-radius:50%;animation:spin 0.7s linear infinite;"></div>
     <div id="loading-msg" style="font-size:0.78rem;color:#888;font-weight:600;letter-spacing:0.04em;">Loading...</div>
+    <!-- Debug log — shows each bootstrap step -->
+    <div id="debug-log" style="width:100%;margin-top:0.5rem;font-size:0.68rem;font-family:monospace;color:#555;background:#f5f5f5;border:1px solid #ddd;border-radius:8px;padding:0.75rem;line-height:1.7;max-height:260px;overflow-y:auto;display:none;"></div>
   </div>
 </div>
 <style>@keyframes spin{to{transform:rotate(360deg)}}</style>
@@ -842,56 +844,114 @@ async function pushConfig() {
 loadAll();
 document.getElementById('btn-save-config').onclick = saveConfigAction;
 
-async function bootstrap() {
-  // ── Step 1: If no local URL, get it from config.json in GitHub ──
-  if (!config.sheetUrl) {
-    showScreen('loading');
-    setLoadingMsg('Connecting...');
-    try {
-      const res = await fetch('./config.json?t=' + Date.now());
-      if (res.ok) {
-        const json = await res.json();
-        if (json.sheetUrl && !json.sheetUrl.includes('PASTE_YOUR')) {
-          config.sheetUrl = json.sheetUrl;
-          saveConfigLS();
-          setLoadingMsg('Found config...');
-        }
-      }
-    } catch(e) { /* config.json missing — will fall to setup */ }
-  }
-
-  // ── Step 2: Still no URL → show setup screen ──
-  if (!config.sheetUrl) {
-    showScreen('setup');
-    return;
-  }
-
-  // ── Step 3: Have URL — pull cloud config first (gets quiz settings) ──
-  showScreen('loading');
-  setLoadingMsg('Syncing settings...');
-  try {
-    const cRes = await fetch(config.sheetUrl + '?action=config&t=' + Date.now());
-    if (cRes.ok) {
-      const cJson = await cRes.json();
-      if (cJson.config) mergeCloudConfig(cJson.config);
-    }
-  } catch(e) { /* silent — proceed with local config */ }
-
-  // ── Step 4: Have vocab locally → go home and sync in background ──
-  if (vocabData.length > 0) {
-    showHome();
-    setTimeout(pullProgress, 300);
-    return;
-  }
-
-  // ── Step 5: No local vocab → fetch from sheet (also syncs progress) ──
-  setLoadingMsg('Loading vocabulary...');
-  await fetchSheet(false, false, true /* silent */);
+// Debug logger — shows in loading screen
+function dbg(msg, ok) {
+  const log = document.getElementById('debug-log');
+  if (!log) return;
+  log.style.display = 'block';
+  const line = document.createElement('div');
+  line.style.color = ok === false ? '#c92a2a' : ok === true ? '#1d8a38' : '#555';
+  line.textContent = (ok === true ? '✓ ' : ok === false ? '✗ ' : '• ') + msg;
+  log.appendChild(line);
+  log.scrollTop = log.scrollHeight;
 }
 
 function setLoadingMsg(msg) {
   const el = document.getElementById('loading-msg');
   if (el) el.textContent = msg;
+}
+
+async function bootstrap() {
+  showScreen('loading');
+  dbg('App started');
+  dbg('Local URL: ' + (config.sheetUrl ? config.sheetUrl.slice(0,40)+'…' : 'none'));
+  dbg('Local vocab: ' + vocabData.length + ' words');
+  dbg('Local history: ' + session.history.length + ' quizzes');
+
+  // ── Step 1: No local URL → try config.json ──
+  if (!config.sheetUrl) {
+    setLoadingMsg('Reading config...');
+    dbg('No local URL — fetching config.json');
+    try {
+      const res = await fetch('./config.json?t=' + Date.now());
+      dbg('config.json HTTP ' + res.status, res.ok);
+      if (res.ok) {
+        const json = await res.json();
+        dbg('config.json content: ' + JSON.stringify(json));
+        if (json.sheetUrl && !json.sheetUrl.includes('PASTE_YOUR')) {
+          config.sheetUrl = json.sheetUrl;
+          saveConfigLS();
+          dbg('URL set from config.json', true);
+        } else {
+          dbg('config.json has no valid URL', false);
+        }
+      }
+    } catch(e) {
+      dbg('config.json fetch error: ' + e.message, false);
+    }
+  }
+
+  // ── Step 2: Still no URL → show setup ──
+  if (!config.sheetUrl) {
+    dbg('No URL found — showing setup screen', false);
+    showScreen('setup');
+    return;
+  }
+
+  // ── Step 3: Pull cloud config (gets quiz settings + confirms URL works) ──
+  setLoadingMsg('Syncing settings...');
+  dbg('Pulling cloud config from: ' + config.sheetUrl.slice(0,40)+'…');
+  try {
+    const cRes = await fetch(config.sheetUrl + '?action=config&t=' + Date.now());
+    dbg('Config pull HTTP ' + cRes.status, cRes.ok);
+    if (cRes.ok) {
+      const cJson = await cRes.json();
+      dbg('Cloud config raw: ' + JSON.stringify(cJson).slice(0,120));
+      if (cJson.config) {
+        mergeCloudConfig(cJson.config);
+        dbg('Cloud config merged', true);
+      } else {
+        dbg('No config in cloud yet (first time?)', null);
+      }
+    }
+  } catch(e) {
+    dbg('Config pull error: ' + e.message, false);
+  }
+
+  // ── Step 4: Pull cloud progress ──
+  setLoadingMsg('Syncing progress...');
+  dbg('Pulling cloud progress...');
+  try {
+    const pRes = await fetch(config.sheetUrl + '?action=progress&t=' + Date.now());
+    dbg('Progress pull HTTP ' + pRes.status, pRes.ok);
+    if (pRes.ok) {
+      const pJson = await pRes.json();
+      dbg('Cloud progress raw: ' + JSON.stringify(pJson).slice(0,120));
+      if (pJson.progress) {
+        const before = session.history.length;
+        mergeCloudProgress(pJson.progress);
+        dbg('Progress merged — history: ' + before + ' → ' + session.history.length, true);
+      } else {
+        dbg('No progress in cloud yet', null);
+      }
+    }
+  } catch(e) {
+    dbg('Progress pull error: ' + e.message, false);
+  }
+
+  // ── Step 5: Have vocab locally → go home ──
+  if (vocabData.length > 0) {
+    dbg('Vocab already local (' + vocabData.length + ' words) — going home', true);
+    // Small delay so user can read debug log if needed
+    await new Promise(r => setTimeout(r, 1200));
+    showHome();
+    return;
+  }
+
+  // ── Step 6: No vocab → fetch from sheet ──
+  setLoadingMsg('Loading vocabulary...');
+  dbg('No local vocab — fetching from sheet...');
+  await fetchSheet(false, false, true);
 }
 
 bootstrap();
