@@ -8,40 +8,34 @@
   @import url('https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
 
   :root {
-    --ink:          #1a1a1a;
-    --ink-soft:     #444;
-    --ink-muted:    #888;
-    --ink-faint:    #ccc;
-    --bg:           #ffffff;
-    --bg-off:       #f5f5f5;
-    --lime:         #c8f135;
-    --lime-dark:    #a8cc20;
-    --green:        #1d8a38;
-    --green-bg:     #edfbf1;
-    --red:          #c92a2a;
-    --red-bg:       #fff0f0;
-    --amber:        #e07800;
-    --amber-bg:     #fffbf5;
-    --amber-border: #e07800;
-    --border:       #1a1a1a;
-    --border-soft:  #e0e0e0;
-    --radius-sm:    6px;
-    --radius-md:    12px;
-    --radius-lg:    18px;
-    --max-w:        430px;
-    --font-head:    'Syne', sans-serif;
-    --font-body:    'Plus Jakarta Sans', sans-serif;
+    --ink:         #1a1a1a;
+    --ink-muted:   #888;
+    --ink-faint:   #ccc;
+    --bg:          #ffffff;
+    --bg-off:      #f5f5f5;
+    --lime:        #c8f135;
+    --lime-dark:   #a8cc20;
+    --green:       #1d8a38;
+    --green-bg:    #edfbf1;
+    --red:         #c92a2a;
+    --red-bg:      #fff0f0;
+    --amber:       #e07800;
+    --amber-bg:    #fffbf5;
+    --border-soft: #e0e0e0;
+    --radius-sm:   6px;
+    --radius-md:   12px;
+    --radius-lg:   18px;
+    --max-w:       430px;
+    --font-head:   'Syne', sans-serif;
+    --font-body:   'Plus Jakarta Sans', sans-serif;
   }
 
   * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
-  html, body {
-    height: 100%; font-family: var(--font-body);
-    background: var(--bg); color: var(--ink);
-    font-size: 15px; -webkit-font-smoothing: antialiased;
-  }
+  html, body { height: 100%; font-family: var(--font-body); background: var(--bg); color: var(--ink); font-size: 15px; -webkit-font-smoothing: antialiased; }
   .screen { display: none; min-height: 100vh; min-height: 100dvh; flex-direction: column; }
   .screen.active { display: flex; }
   .hidden { display: none !important; }
+  @keyframes spin { to { transform: rotate(360deg); } }
 
   /* ── SHARED HEADER ── */
   .app-header {
@@ -50,323 +44,166 @@
     border-bottom: 2px solid var(--ink);
     position: sticky; top: 0; z-index: 20; gap: 0.5rem;
   }
-  .header-logo {
-    font-family: var(--font-head); font-weight: 800; font-size: 0.95rem;
-    color: var(--ink); letter-spacing: -0.2px; white-space: nowrap;
-  }
+  .header-logo { font-family: var(--font-head); font-weight: 800; font-size: 0.95rem; color: var(--ink); letter-spacing: -0.2px; white-space: nowrap; }
   .header-meta { display: flex; align-items: center; gap: 0.4rem; flex: 1; justify-content: center; flex-wrap: wrap; }
   .header-btns { display: flex; gap: 0.35rem; flex-shrink: 0; }
 
-  .ink-pill {
-    font-family: var(--font-head); background: var(--ink); color: #fff;
-    font-size: 0.65rem; font-weight: 700; padding: 0.22rem 0.55rem;
-    border-radius: var(--radius-sm); letter-spacing: 0.06em;
-    text-transform: uppercase; white-space: nowrap;
-  }
-  .outline-pill {
-    border: 1.5px solid var(--ink); color: var(--ink); background: var(--bg-off);
-    font-size: 0.65rem; font-weight: 700; padding: 0.22rem 0.55rem;
-    border-radius: var(--radius-sm); letter-spacing: 0.04em; white-space: nowrap;
-  }
-  .lime-pill {
-    background: var(--lime); color: var(--ink); font-family: var(--font-head);
-    font-size: 0.65rem; font-weight: 700; padding: 0.22rem 0.55rem;
-    border-radius: var(--radius-sm); letter-spacing: 0.04em; white-space: nowrap;
-  }
-  .icon-btn {
-    padding: 0.28rem 0.6rem; border: 1.5px solid var(--ink-faint);
-    border-radius: var(--radius-sm); background: var(--bg);
-    font-size: 0.72rem; font-weight: 700; font-family: var(--font-body);
-    cursor: pointer; color: var(--ink-muted); white-space: nowrap;
-    transition: border-color 0.15s, color 0.15s;
-  }
+  .ink-pill     { font-family: var(--font-head); background: var(--ink); color: #fff; font-size: 0.65rem; font-weight: 700; padding: 0.22rem 0.55rem; border-radius: var(--radius-sm); letter-spacing: 0.06em; text-transform: uppercase; white-space: nowrap; }
+  .lime-pill    { background: var(--lime); color: var(--ink); font-family: var(--font-head); font-size: 0.65rem; font-weight: 700; padding: 0.22rem 0.55rem; border-radius: var(--radius-sm); white-space: nowrap; }
+  .outline-pill { border: 1.5px solid var(--ink); color: var(--ink); background: var(--bg-off); font-size: 0.65rem; font-weight: 700; padding: 0.22rem 0.55rem; border-radius: var(--radius-sm); white-space: nowrap; }
+  .icon-btn     { padding: 0.28rem 0.6rem; border: 1.5px solid var(--ink-faint); border-radius: var(--radius-sm); background: var(--bg); font-size: 0.72rem; font-weight: 700; font-family: var(--font-body); cursor: pointer; color: var(--ink-muted); white-space: nowrap; transition: border-color 0.15s, color 0.15s; }
   .icon-btn:hover { border-color: var(--ink); color: var(--ink); }
-  .btn-back {
-    padding: 0.28rem 0.65rem; border: 2px solid var(--ink);
-    border-radius: var(--radius-sm); background: var(--bg);
-    font-size: 0.72rem; font-weight: 800; font-family: var(--font-head);
-    cursor: pointer; color: var(--ink); white-space: nowrap; letter-spacing: 0.03em;
-  }
+  .btn-back     { padding: 0.28rem 0.65rem; border: 2px solid var(--ink); border-radius: var(--radius-sm); background: var(--bg); font-size: 0.72rem; font-weight: 800; font-family: var(--font-head); cursor: pointer; color: var(--ink); white-space: nowrap; }
   .btn-back:hover { background: var(--bg-off); }
+
   .tag-select {
-    padding: 0.26rem 1.4rem 0.26rem 0.55rem;
-    border: 1.5px solid var(--ink); border-radius: var(--radius-sm);
-    background: var(--bg-off); font-size: 0.7rem; font-weight: 700;
-    font-family: var(--font-body); cursor: pointer; color: var(--ink);
-    appearance: none; max-width: 84px;
+    padding: 0.26rem 1.4rem 0.26rem 0.55rem; border: 1.5px solid var(--ink); border-radius: var(--radius-sm);
+    background: var(--bg-off); font-size: 0.7rem; font-weight: 700; font-family: var(--font-body);
+    cursor: pointer; color: var(--ink); appearance: none; max-width: 84px;
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 12 12'%3E%3Cpath fill='%231a1a1a' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
     background-repeat: no-repeat; background-position: right 0.45rem center;
   }
-  .tag-select:focus { outline: none; }
-  .tag-select.active-tag {
-    background-color: var(--ink); color: #fff;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 12 12'%3E%3Cpath fill='%23ffffff' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
-  }
-  .prog-bg   { width: 100%; height: 5px; background: var(--bg-off); border-radius: 99px; overflow: hidden; }
-  .prog-fill { height: 100%; width: 0%; background: var(--ink); border-radius: 99px; transition: width 0.6s ease; }
+  .tag-select.active-tag { background-color: var(--ink); color: #fff; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 12 12'%3E%3Cpath fill='%23ffffff' d='M6 8L1 3h10z'/%3E%3C/svg%3E"); }
 
-  /* ── SYNC STATUS BAR ── */
-  .sync-bar {
-    background: var(--bg-off); border-bottom: 1px solid var(--border-soft);
-    padding: 0.28rem 1rem;
-    display: flex; align-items: center; justify-content: space-between; gap: 0.5rem;
-    font-size: 0.65rem; font-weight: 600; color: var(--ink-muted);
-  }
-  .sync-bar.syncing  { background: #fffbf0; color: var(--amber); border-color: #ffe0a0; }
-  .sync-bar.synced   { background: #f0fbf4; color: var(--green); border-color: #b0e8c0; }
-  .sync-bar.error    { background: var(--red-bg); color: var(--red); border-color: #f0b0b0; }
+  /* ── SYNC BAR ── */
+  .sync-bar { background: var(--bg-off); border-bottom: 1px solid var(--border-soft); padding: 0.28rem 1rem; display: flex; align-items: center; gap: 0.5rem; font-size: 0.65rem; font-weight: 600; color: var(--ink-muted); }
+  .sync-bar.syncing { background: #fffbf0; color: var(--amber); border-color: #ffe0a0; }
+  .sync-bar.synced  { background: #f0fbf4; color: var(--green); border-color: #b0e8c0; }
+  .sync-bar.error   { background: var(--red-bg); color: var(--red); border-color: #f0b0b0; }
   .sync-dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; flex-shrink: 0; }
+
+  /* ── LOADING ── */
+  #screen-loading { align-items: center; justify-content: center; background: var(--bg); }
+  .loading-inner { display: flex; flex-direction: column; align-items: center; gap: 1rem; padding: 2rem; width: 100%; max-width: var(--max-w); }
+  .spinner { width: 40px; height: 40px; border: 3px solid var(--bg-off); border-top-color: var(--ink); border-radius: 50%; animation: spin 0.7s linear infinite; }
+  #debug-log { width: 100%; margin-top: 0.5rem; font-size: 0.68rem; font-family: monospace; color: #555; background: #f5f5f5; border: 1px solid #ddd; border-radius: 8px; padding: 0.75rem; line-height: 1.7; max-height: 260px; overflow-y: auto; display: none; }
 
   /* ── SETUP ── */
   #screen-setup { align-items: center; justify-content: center; padding: 2rem 1rem; }
-  .setup-card {
-    background: var(--bg); border: 2px solid var(--ink); border-radius: var(--radius-lg);
-    box-shadow: 5px 5px 0 var(--ink); padding: 1.8rem 1.4rem;
-    width: 100%; max-width: var(--max-w);
-  }
-  .setup-card h1 {
-    font-family: var(--font-head); font-size: 1.6rem; font-weight: 800;
-    color: var(--ink); margin-bottom: 0.4rem; letter-spacing: -0.5px;
-  }
-  .setup-card p { color: var(--ink-muted); margin-bottom: 1.4rem; font-size: 0.85rem; line-height: 1.5; }
-  .field-label {
-    font-size: 0.68rem; font-weight: 700; color: var(--ink-muted);
-    margin-bottom: 0.3rem; letter-spacing: 0.06em; text-transform: uppercase; display: block;
-  }
-  .text-input {
-    width: 100%; padding: 0.65rem 0.85rem;
-    border: 2px solid var(--border-soft); border-radius: var(--radius-sm);
-    font-size: 0.88rem; font-family: var(--font-body);
-    background: var(--bg-off); color: var(--ink);
-    transition: border-color 0.2s; margin-bottom: 1rem;
-  }
+  .setup-card { background: var(--bg); border: 2px solid var(--ink); border-radius: var(--radius-lg); box-shadow: 5px 5px 0 var(--ink); padding: 1.8rem 1.4rem; width: 100%; max-width: var(--max-w); }
+  .setup-card h1 { font-family: var(--font-head); font-size: 1.6rem; font-weight: 800; margin-bottom: 0.4rem; letter-spacing: -0.5px; }
+  .setup-card p  { color: var(--ink-muted); margin-bottom: 1.4rem; font-size: 0.85rem; line-height: 1.5; }
+  .field-label   { font-size: 0.68rem; font-weight: 700; color: var(--ink-muted); margin-bottom: 0.3rem; letter-spacing: 0.06em; text-transform: uppercase; display: block; }
+  .text-input    { width: 100%; padding: 0.65rem 0.85rem; border: 2px solid var(--border-soft); border-radius: var(--radius-sm); font-size: 0.88rem; font-family: var(--font-body); background: var(--bg-off); color: var(--ink); transition: border-color 0.2s; margin-bottom: 1rem; }
   .text-input:focus { outline: none; border-color: var(--ink); }
-  .btn-primary {
-    width: 100%; padding: 0.85rem; background: var(--lime); color: var(--ink);
-    border: 2px solid var(--ink); border-radius: var(--radius-sm);
-    font-size: 0.9rem; font-weight: 800; font-family: var(--font-head);
-    cursor: pointer; letter-spacing: 0.04em; transition: background 0.15s, box-shadow 0.15s;
-  }
+  .btn-primary  { width: 100%; padding: 0.85rem; background: var(--lime); color: var(--ink); border: 2px solid var(--ink); border-radius: var(--radius-sm); font-size: 0.9rem; font-weight: 800; font-family: var(--font-head); cursor: pointer; letter-spacing: 0.04em; transition: background 0.15s, box-shadow 0.15s; }
   .btn-primary:hover { background: var(--lime-dark); box-shadow: 3px 3px 0 var(--ink); }
-  .progress-wrap    { margin-top: 1rem; }
-  .progress-bar-bg  { background: var(--border-soft); border-radius: 99px; height: 6px; overflow: hidden; }
-  .progress-bar-fill{ height: 100%; background: var(--ink); border-radius: 99px; transition: width 0.4s; width: 0%; }
-  .progress-msg     { font-size: 0.78rem; color: var(--ink-muted); margin-top: 0.4rem; line-height: 1.4; }
+  .progress-wrap     { margin-top: 1rem; }
+  .progress-bar-bg   { background: var(--border-soft); border-radius: 99px; height: 6px; overflow: hidden; }
+  .progress-bar-fill { height: 100%; background: var(--ink); border-radius: 99px; transition: width 0.4s; width: 0%; }
+  .progress-msg      { font-size: 0.78rem; color: var(--ink-muted); margin-top: 0.4rem; line-height: 1.4; }
 
   /* ── HOME ── */
-  .home-body {
-    flex: 1; padding: 0.85rem;
-    display: flex; flex-direction: column; gap: 0.65rem;
-    max-width: var(--max-w); width: 100%; margin: 0 auto;
-  }
-  .home-hero {
-    background: var(--ink); border-radius: var(--radius-lg); border: 2px solid var(--ink);
-    padding: 1rem 1.1rem; display: flex; align-items: flex-end; justify-content: space-between;
-  }
+  .home-body { flex: 1; padding: 0.85rem; display: flex; flex-direction: column; gap: 0.65rem; max-width: var(--max-w); width: 100%; margin: 0 auto; }
+
+  .home-hero { background: var(--ink); border-radius: var(--radius-lg); border: 2px solid var(--ink); padding: 1rem 1.1rem; display: flex; align-items: flex-end; justify-content: space-between; }
   .home-hero-eyebrow { font-size: 0.6rem; font-weight: 700; color: #666; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 0.15rem; }
-  .home-hero-big { font-family: var(--font-head); font-size: 3rem; font-weight: 800; color: var(--lime); line-height: 1; }
-  .home-hero-sub { font-size: 0.65rem; color: #555; margin-top: 0.1rem; }
-  .home-hero-right { display: flex; flex-direction: column; align-items: flex-end; gap: 0.55rem; }
-  .home-hero-stat { text-align: right; }
-  .home-hero-stat-num { font-family: var(--font-head); font-size: 1.05rem; font-weight: 800; color: #fff; line-height: 1; }
+  .home-hero-big     { font-family: var(--font-head); font-size: 3rem; font-weight: 800; color: var(--lime); line-height: 1; }
+  .home-hero-sub     { font-size: 0.65rem; color: #555; margin-top: 0.1rem; }
+  .home-hero-right   { display: flex; flex-direction: column; align-items: flex-end; gap: 0.55rem; }
+  .home-hero-stat    { text-align: right; }
+  .home-hero-stat-num  { font-family: var(--font-head); font-size: 1.05rem; font-weight: 800; color: #fff; line-height: 1; }
   .home-hero-stat-frac { font-size: 0.72rem; color: #444; }
-  .home-hero-stat-lbl { font-size: 0.58rem; color: #555; text-transform: uppercase; letter-spacing: 0.06em; margin-top: 0.08rem; }
-  .home-hero-divider  { width: 24px; height: 0.5px; background: #333; align-self: flex-end; }
-  .home-prog-wrap { padding: 0 0.1rem; }
+  .home-hero-stat-lbl  { font-size: 0.58rem; color: #555; text-transform: uppercase; letter-spacing: 0.06em; margin-top: 0.08rem; }
+  .home-hero-divider   { width: 24px; height: 0.5px; background: #333; align-self: flex-end; }
+
+  .home-prog-wrap   { padding: 0 0.1rem; }
   .home-prog-labels { display: flex; justify-content: space-between; margin-bottom: 0.28rem; }
-  .home-prog-lbl { font-size: 0.6rem; font-weight: 600; color: var(--ink-muted); text-transform: uppercase; letter-spacing: 0.06em; }
-  .home-prog-val { font-size: 0.6rem; font-weight: 700; color: var(--ink); }
-  .home-stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; }
-  .home-stat-box {
-    border: 2px solid var(--ink); border-radius: var(--radius-md);
-    padding: 0.7rem 0.75rem 0.6rem; display: flex; flex-direction: column; gap: 0.1rem;
-  }
+  .home-prog-lbl    { font-size: 0.6rem; font-weight: 600; color: var(--ink-muted); text-transform: uppercase; letter-spacing: 0.06em; }
+  .home-prog-val    { font-size: 0.6rem; font-weight: 700; color: var(--ink); }
+  .prog-bg   { width: 100%; height: 5px; background: var(--bg-off); border-radius: 99px; overflow: hidden; }
+  .prog-fill { height: 100%; width: 0%; background: var(--ink); border-radius: 99px; transition: width 0.6s ease; }
+
+  .home-stat-grid  { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; }
+  .home-stat-box   { border: 2px solid var(--ink); border-radius: var(--radius-md); padding: 0.7rem 0.75rem 0.6rem; display: flex; flex-direction: column; gap: 0.1rem; }
   .home-stat-num   { font-family: var(--font-head); font-size: 1.45rem; font-weight: 800; line-height: 1.1; }
   .home-stat-green { color: var(--green); }
   .home-stat-red   { color: var(--red); }
   .home-stat-lbl   { font-size: 0.68rem; font-weight: 600; color: var(--ink-muted); display: flex; align-items: center; gap: 0.22rem; }
   .ic-g { color: var(--green); font-weight: 800; }
   .ic-r { color: var(--red);   font-weight: 800; }
-  .home-count-box {
-    grid-column: span 2; border: 2px solid var(--amber-border);
-    border-radius: var(--radius-md); padding: 0.65rem 0.85rem;
-    background: var(--amber-bg); display: flex; align-items: center; justify-content: space-between;
-  }
+
+  .home-count-box  { grid-column: span 2; border: 2px solid var(--amber); border-radius: var(--radius-md); padding: 0.65rem 0.85rem; background: var(--amber-bg); display: flex; align-items: center; justify-content: space-between; }
   .home-count-left { display: flex; flex-direction: column; gap: 0.12rem; }
   .home-count-num  { font-family: var(--font-head); font-size: 1.45rem; font-weight: 800; color: var(--amber); line-height: 1.1; }
   .home-count-lbl  { font-size: 0.68rem; font-weight: 600; color: #b35e00; }
   .home-count-sub  { font-size: 0.6rem; color: #c8832a; }
   .home-count-icon { font-size: 1.3rem; opacity: 0.4; }
-  .home-no-data {
-    text-align: center; padding: 1.4rem 1rem; color: var(--ink-muted);
-    font-size: 0.85rem; font-style: italic;
-    border: 2px dashed var(--border-soft); border-radius: var(--radius-md);
-  }
-  .btn-start {
-    width: 100%; padding: 0.9rem; background: var(--lime); color: var(--ink);
-    border: 2px solid var(--ink); border-radius: var(--radius-md);
-    font-family: var(--font-head); font-size: 0.92rem; font-weight: 800;
-    cursor: pointer; letter-spacing: 0.04em;
-    display: flex; align-items: center; justify-content: center; gap: 0.55rem;
-    transition: background 0.15s, box-shadow 0.15s;
-  }
+
+  .home-no-data { text-align: center; padding: 1.4rem 1rem; color: var(--ink-muted); font-size: 0.85rem; font-style: italic; border: 2px dashed var(--border-soft); border-radius: var(--radius-md); }
+
+  .btn-start { width: 100%; padding: 0.9rem; background: var(--lime); color: var(--ink); border: 2px solid var(--ink); border-radius: var(--radius-md); font-family: var(--font-head); font-size: 0.92rem; font-weight: 800; cursor: pointer; letter-spacing: 0.04em; display: flex; align-items: center; justify-content: center; gap: 0.55rem; transition: background 0.15s, box-shadow 0.15s; }
   .btn-start:hover { background: var(--lime-dark); box-shadow: 3px 3px 0 var(--ink); }
-  .play-circle {
-    width: 22px; height: 22px; background: var(--ink); border-radius: 50%;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 9px; color: var(--lime); flex-shrink: 0;
-  }
+  .play-circle { width: 22px; height: 22px; background: var(--ink); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 9px; color: var(--lime); flex-shrink: 0; }
 
   /* ── QUIZ ── */
-  .timeout-banner {
-    background: var(--amber); color: #fff; text-align: center;
-    padding: 0.5rem 1rem; font-size: 0.82rem; font-weight: 700; letter-spacing: 0.02em;
-  }
-  .quiz-body {
-    flex: 1; padding: 0.85rem; display: flex; flex-direction: column; gap: 0.7rem;
-    max-width: var(--max-w); width: 100%; margin: 0 auto;
-  }
-  .quiz-prog-strip {
-    background: var(--ink); border-radius: var(--radius-sm);
-    padding: 0.5rem 0.85rem;
-    display: flex; align-items: center; justify-content: space-between; gap: 0.5rem;
-  }
+  .timeout-banner { background: var(--amber); color: #fff; text-align: center; padding: 0.5rem 1rem; font-size: 0.82rem; font-weight: 700; }
+  .quiz-body { flex: 1; padding: 0.85rem; display: flex; flex-direction: column; gap: 0.7rem; max-width: var(--max-w); width: 100%; margin: 0 auto; }
+
+  .quiz-prog-strip { background: var(--ink); border-radius: var(--radius-sm); padding: 0.5rem 0.85rem; display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; }
   .quiz-prog-text  { font-family: var(--font-head); font-size: 0.72rem; font-weight: 800; color: #fff; letter-spacing: 0.04em; }
   .quiz-prog-timer { font-size: 0.72rem; color: #aaa; font-weight: 600; font-variant-numeric: tabular-nums; }
   .quiz-strip-bar  { flex: 1; height: 4px; background: #333; border-radius: 99px; overflow: hidden; }
   .quiz-strip-fill { height: 100%; background: var(--lime); border-radius: 99px; transition: width 0.4s; }
+
   .word-card { background: var(--bg); border: 2px solid var(--ink); border-radius: var(--radius-lg); overflow: hidden; }
-  .word-card-top {
-    display: grid; grid-template-columns: auto 1fr; align-items: start; gap: 0.5rem;
-    padding: 0.85rem 1rem; border-bottom: 2px solid var(--ink); background: var(--ink);
-  }
-  .pos-tag {
-    background: var(--lime); color: var(--ink); font-size: 0.65rem; font-weight: 800;
-    padding: 0.15rem 0.4rem; border-radius: 4px; text-transform: uppercase;
-    letter-spacing: 0.06em; white-space: nowrap; margin-top: 0.35rem; font-family: var(--font-head);
-  }
+  .word-card-top { display: grid; grid-template-columns: auto 1fr; align-items: start; gap: 0.5rem; padding: 0.85rem 1rem; border-bottom: 2px solid var(--ink); background: var(--ink); }
+  .pos-tag { background: var(--lime); color: var(--ink); font-size: 0.65rem; font-weight: 800; padding: 0.15rem 0.4rem; border-radius: 4px; text-transform: uppercase; letter-spacing: 0.06em; white-space: nowrap; margin-top: 0.35rem; font-family: var(--font-head); }
   .word-main-col { display: flex; flex-direction: column; gap: 0.22rem; }
   .chinese-text  { font-size: 1.55rem; font-weight: 700; color: #fff; line-height: 1.25; font-family: var(--font-head); }
   .word-meta-row { display: flex; gap: 0.4rem; align-items: center; }
   .date-tag  { font-size: 0.68rem; color: #666; }
-  .count-tag {
-    background: rgba(200,241,53,0.2); color: var(--lime); font-size: 0.65rem; font-weight: 700;
-    padding: 0.1rem 0.35rem; border-radius: 4px; border: 1px solid rgba(200,241,53,0.4);
-  }
+  .count-tag { background: rgba(200,241,53,0.2); color: var(--lime); font-size: 0.65rem; font-weight: 700; padding: 0.1rem 0.35rem; border-radius: 4px; border: 1px solid rgba(200,241,53,0.4); }
+
   .answer-section { padding: 0.9rem 1rem; background: var(--bg); }
-  .english-text { font-size: 1.3rem; font-weight: 700; color: var(--ink); margin-bottom: 0.35rem; font-family: var(--font-head); line-height: 1.3; }
-  .example-text { font-size: 0.82rem; color: var(--ink-muted); line-height: 1.6; font-style: italic; }
-  .btn-answer {
-    width: 100%; padding: 0.85rem; background: var(--ink); color: #fff;
-    border: 2px solid var(--ink); border-radius: var(--radius-md);
-    font-size: 0.9rem; font-weight: 800; font-family: var(--font-head);
-    cursor: pointer; letter-spacing: 0.04em; transition: background 0.15s, box-shadow 0.15s;
-  }
-  .btn-answer:hover { background: #333; box-shadow: 3px 3px 0 var(--ink-faint); }
+  .english-text   { font-size: 1.3rem; font-weight: 700; color: var(--ink); margin-bottom: 0.35rem; font-family: var(--font-head); line-height: 1.3; }
+  .example-text   { font-size: 0.82rem; color: var(--ink-muted); line-height: 1.6; font-style: italic; }
+
+  .btn-answer { width: 100%; padding: 0.85rem; background: var(--ink); color: #fff; border: 2px solid var(--ink); border-radius: var(--radius-md); font-size: 0.9rem; font-weight: 800; font-family: var(--font-head); cursor: pointer; letter-spacing: 0.04em; transition: background 0.15s; }
+  .btn-answer:hover { background: #333; }
+
   .vx-row { display: grid; grid-template-columns: 1fr 1fr; gap: 0.55rem; }
-  .btn-correct {
-    padding: 0.85rem; border-radius: var(--radius-md);
-    background: var(--green-bg); color: var(--green); font-size: 1.3rem; font-weight: 800;
-    cursor: pointer; border: 2px solid var(--green); transition: background 0.15s, transform 0.1s;
-  }
+  .btn-correct { padding: 0.85rem; border-radius: var(--radius-md); background: var(--green-bg); color: var(--green); font-size: 1.3rem; font-weight: 800; cursor: pointer; border: 2px solid var(--green); transition: background 0.15s, transform 0.1s; }
   .btn-correct:hover  { background: var(--green); color: #fff; }
   .btn-correct:active { transform: scale(0.97); }
-  .btn-wrong {
-    padding: 0.85rem; border-radius: var(--radius-md);
-    background: var(--red-bg); color: var(--red); font-size: 1.3rem; font-weight: 800;
-    cursor: pointer; border: 2px solid var(--red); transition: background 0.15s, transform 0.1s;
-  }
+  .btn-wrong { padding: 0.85rem; border-radius: var(--radius-md); background: var(--red-bg); color: var(--red); font-size: 1.3rem; font-weight: 800; cursor: pointer; border: 2px solid var(--red); transition: background 0.15s, transform 0.1s; }
   .btn-wrong:hover  { background: var(--red); color: #fff; }
   .btn-wrong:active { transform: scale(0.97); }
-  .btn-next {
-    width: 100%; padding: 0.82rem; background: var(--bg-off); color: var(--ink-faint);
-    border: 2px solid var(--border-soft); border-radius: var(--radius-md);
-    font-size: 0.9rem; font-weight: 800; font-family: var(--font-head);
-    cursor: not-allowed; pointer-events: none; letter-spacing: 0.04em; transition: all 0.2s;
-  }
-  .btn-next.active {
-    background: var(--lime); color: var(--ink); border-color: var(--ink);
-    cursor: pointer; pointer-events: auto; box-shadow: 3px 3px 0 var(--ink);
-  }
+
+  .btn-next { width: 100%; padding: 0.82rem; background: var(--bg-off); color: var(--ink-faint); border: 2px solid var(--border-soft); border-radius: var(--radius-md); font-size: 0.9rem; font-weight: 800; font-family: var(--font-head); cursor: not-allowed; pointer-events: none; letter-spacing: 0.04em; transition: all 0.2s; }
+  .btn-next.active { background: var(--lime); color: var(--ink); border-color: var(--ink); cursor: pointer; pointer-events: auto; box-shadow: 3px 3px 0 var(--ink); }
   .btn-next.active:hover { background: var(--lime-dark); }
 
   /* ── CONFIG ── */
-  .config-body {
-    flex: 1; padding: 1rem 0.85rem; display: flex; flex-direction: column; gap: 0.9rem;
-    max-width: var(--max-w); width: 100%; margin: 0 auto; overflow-y: auto;
-  }
-  .config-section-title {
-    font-family: var(--font-head); font-size: 0.68rem; font-weight: 800;
-    color: var(--ink-muted); text-transform: uppercase; letter-spacing: 0.1em;
-    padding-bottom: 0.3rem; border-bottom: 1px solid var(--border-soft);
-  }
+  .config-body { flex: 1; padding: 1rem 0.85rem; display: flex; flex-direction: column; gap: 0.9rem; max-width: var(--max-w); width: 100%; margin: 0 auto; overflow-y: auto; }
+  .config-section-title { font-family: var(--font-head); font-size: 0.68rem; font-weight: 800; color: var(--ink-muted); text-transform: uppercase; letter-spacing: 0.1em; padding-bottom: 0.3rem; border-bottom: 1px solid var(--border-soft); }
   .config-group  { display: flex; flex-direction: column; gap: 0.28rem; }
   .config-label  { font-size: 0.68rem; font-weight: 700; color: var(--ink); text-transform: uppercase; letter-spacing: 0.06em; }
-  .config-input  {
-    width: 100%; padding: 0.62rem 0.85rem; border: 2px solid var(--border-soft);
-    border-radius: var(--radius-sm); font-size: 0.88rem; font-family: var(--font-body);
-    background: var(--bg-off); color: var(--ink); transition: border-color 0.2s;
-  }
+  .config-input  { width: 100%; padding: 0.62rem 0.85rem; border: 2px solid var(--border-soft); border-radius: var(--radius-sm); font-size: 0.88rem; font-family: var(--font-body); background: var(--bg-off); color: var(--ink); transition: border-color 0.2s; }
   .config-input:focus { outline: none; border-color: var(--ink); }
-  .config-select {
-    width: 100%; padding: 0.62rem 2rem 0.62rem 0.85rem; border: 2px solid var(--border-soft);
-    border-radius: var(--radius-sm); font-size: 0.88rem; font-family: var(--font-body);
-    background: var(--bg-off); color: var(--ink); cursor: pointer; appearance: none;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%231a1a1a' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
-    background-repeat: no-repeat; background-position: right 0.85rem center;
-  }
+  .config-select { width: 100%; padding: 0.62rem 2rem 0.62rem 0.85rem; border: 2px solid var(--border-soft); border-radius: var(--radius-sm); font-size: 0.88rem; font-family: var(--font-body); background: var(--bg-off); color: var(--ink); cursor: pointer; appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%231a1a1a' d='M6 8L1 3h10z'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 0.85rem center; }
   .config-select:focus { outline: none; border-color: var(--ink); }
   .config-divider { border: none; border-top: 1px solid var(--border-soft); }
   .refetch-row { display: flex; gap: 0.4rem; align-items: flex-start; }
   .refetch-row .config-input { flex: 1; }
-  .btn-refetch {
-    padding: 0.62rem 0.75rem; white-space: nowrap; border: 2px solid var(--ink);
-    border-radius: var(--radius-sm); background: var(--lime); color: var(--ink);
-    font-size: 0.78rem; font-weight: 800; font-family: var(--font-head);
-    cursor: pointer; transition: background 0.15s; flex-shrink: 0;
-  }
+  .btn-refetch { padding: 0.62rem 0.75rem; white-space: nowrap; border: 2px solid var(--ink); border-radius: var(--radius-sm); background: var(--lime); color: var(--ink); font-size: 0.78rem; font-weight: 800; font-family: var(--font-head); cursor: pointer; flex-shrink: 0; transition: background 0.15s; }
   .btn-refetch:hover { background: var(--lime-dark); }
   .refetch-progress { margin-top: 0.4rem; }
   .num-unit-row { display: flex; gap: 0.5rem; align-items: center; }
   .num-unit-row .config-input { flex: 1; }
   .num-unit-row span { font-size: 0.82rem; color: var(--ink-muted); white-space: nowrap; }
-  .btn-danger {
-    padding: 0.7rem 1rem; border: 2px solid var(--red); border-radius: var(--radius-sm);
-    background: var(--red-bg); color: var(--red); font-size: 0.88rem; font-weight: 700;
-    font-family: var(--font-body); cursor: pointer; transition: background 0.15s; width: 100%;
-  }
+  .btn-danger  { padding: 0.7rem 1rem; border: 2px solid var(--red); border-radius: var(--radius-sm); background: var(--red-bg); color: var(--red); font-size: 0.88rem; font-weight: 700; font-family: var(--font-body); cursor: pointer; width: 100%; transition: background 0.15s; }
   .btn-danger:hover { background: var(--red); color: #fff; }
-  .btn-export {
-    padding: 0.7rem 1rem; border: 2px solid var(--border-soft); border-radius: var(--radius-sm);
-    background: var(--bg); color: var(--ink-muted); font-size: 0.88rem; font-weight: 600;
-    font-family: var(--font-body); cursor: pointer; transition: border-color 0.15s; width: 100%;
-  }
-  .btn-export:hover { border-color: var(--ink); color: var(--ink); }
-  .btn-save {
-    padding: 0.85rem 1rem; background: var(--lime); color: var(--ink);
-    border: 2px solid var(--ink); border-radius: var(--radius-sm);
-    font-size: 0.9rem; font-weight: 800; font-family: var(--font-head);
-    cursor: pointer; width: 100%; letter-spacing: 0.04em;
-    transition: background 0.15s, box-shadow 0.15s;
-  }
+  .btn-save    { padding: 0.85rem 1rem; background: var(--lime); color: var(--ink); border: 2px solid var(--ink); border-radius: var(--radius-sm); font-size: 0.9rem; font-weight: 800; font-family: var(--font-head); cursor: pointer; width: 100%; letter-spacing: 0.04em; transition: background 0.15s, box-shadow 0.15s; }
   .btn-save:hover { background: var(--lime-dark); box-shadow: 3px 3px 0 var(--ink); }
 
   /* ── REPORT ── */
-  .report-body {
-    flex: 1; padding: 0.85rem; max-width: var(--max-w); width: 100%; margin: 0 auto; overflow-x: auto;
-  }
+  .report-body { flex: 1; padding: 0.85rem; max-width: var(--max-w); width: 100%; margin: 0 auto; overflow-x: auto; }
   .report-table-wrap { border-radius: var(--radius-md); overflow: hidden; border: 2px solid var(--ink); }
-  .report-footer, .summary-footer {
-    padding: 0.85rem; display: flex; justify-content: flex-end; gap: 0.6rem;
-    max-width: var(--max-w); width: 100%; margin: 0 auto;
-  }
-  .btn-newtest {
-    padding: 0.7rem 1.3rem; background: var(--lime); color: var(--ink);
-    border: 2px solid var(--ink); border-radius: var(--radius-sm);
-    font-size: 0.88rem; font-weight: 800; font-family: var(--font-head);
-    cursor: pointer; letter-spacing: 0.04em; transition: background 0.15s, box-shadow 0.15s;
-  }
+  .report-footer, .summary-footer { padding: 0.85rem; display: flex; justify-content: flex-end; gap: 0.6rem; max-width: var(--max-w); width: 100%; margin: 0 auto; }
+  .btn-newtest { padding: 0.7rem 1.3rem; background: var(--lime); color: var(--ink); border: 2px solid var(--ink); border-radius: var(--radius-sm); font-size: 0.88rem; font-weight: 800; font-family: var(--font-head); cursor: pointer; letter-spacing: 0.04em; transition: background 0.15s, box-shadow 0.15s; }
   .btn-newtest:hover { background: var(--lime-dark); box-shadow: 3px 3px 0 var(--ink); }
+
   table { width: 100%; border-collapse: collapse; background: var(--bg); font-size: 0.78rem; }
   thead tr { background: var(--ink); color: #fff; }
   thead th { padding: 0.55rem 0.6rem; text-align: left; font-weight: 700; font-size: 0.65rem; letter-spacing: 0.06em; white-space: nowrap; font-family: var(--font-head); }
@@ -379,72 +216,41 @@
   .no-data-row td { text-align: center; padding: 1.5rem; color: var(--ink-muted); font-style: italic; }
 
   /* ── MODAL ── */
-  .modal-overlay {
-    position: fixed; inset: 0; background: rgba(0,0,0,0.5);
-    display: flex; align-items: flex-end; justify-content: center; z-index: 100;
-  }
+  .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: flex; align-items: flex-end; justify-content: center; z-index: 100; }
   .modal-overlay.hidden { display: none; }
-  .modal-card {
-    background: var(--bg); border-radius: var(--radius-lg) var(--radius-lg) 0 0;
-    border: 2px solid var(--ink); border-bottom: none;
-    padding: 1.4rem; width: 100%; max-width: var(--max-w);
-  }
-  .modal-card h3 { font-family: var(--font-head); font-size: 1rem; font-weight: 800; margin-bottom: 0.9rem; color: var(--ink); }
+  .modal-card { background: var(--bg); border-radius: var(--radius-lg) var(--radius-lg) 0 0; border: 2px solid var(--ink); border-bottom: none; padding: 1.4rem; width: 100%; max-width: var(--max-w); }
+  .modal-card h3 { font-family: var(--font-head); font-size: 1rem; font-weight: 800; margin-bottom: 0.9rem; }
   .modal-btn-list { display: flex; flex-direction: column; gap: 0.45rem; }
-  .modal-btn {
-    padding: 0.7rem 1rem; border: 2px solid var(--border-soft); border-radius: var(--radius-sm);
-    background: var(--bg-off); color: var(--ink); font-size: 0.88rem; font-weight: 600;
-    font-family: var(--font-body); cursor: pointer; text-align: left;
-    transition: border-color 0.15s, background 0.15s;
-  }
+  .modal-btn { padding: 0.7rem 1rem; border: 2px solid var(--border-soft); border-radius: var(--radius-sm); background: var(--bg-off); color: var(--ink); font-size: 0.88rem; font-weight: 600; font-family: var(--font-body); cursor: pointer; text-align: left; transition: border-color 0.15s, background 0.15s; }
   .modal-btn:hover { border-color: var(--ink); background: var(--lime); }
-  .past-days-row { display: flex; gap: 0.45rem; align-items: center; }
-  .past-days-input {
-    width: 60px; padding: 0.5rem; border: 2px solid var(--border-soft);
-    border-radius: var(--radius-sm); font-size: 0.88rem; font-family: var(--font-body);
-    text-align: center; background: var(--bg-off); color: var(--ink);
-  }
-  .past-days-input:focus { outline: none; border-color: var(--ink); }
-  .btn-cancel {
-    margin-top: 0.65rem; width: 100%; padding: 0.62rem;
-    border: 2px solid var(--border-soft); border-radius: var(--radius-sm);
-    background: transparent; color: var(--ink-muted); font-size: 0.85rem;
-    font-family: var(--font-body); cursor: pointer; font-weight: 600;
-  }
+  .btn-cancel { margin-top: 0.65rem; width: 100%; padding: 0.62rem; border: 2px solid var(--border-soft); border-radius: var(--radius-sm); background: transparent; color: var(--ink-muted); font-size: 0.85rem; font-family: var(--font-body); cursor: pointer; font-weight: 600; }
   .btn-cancel:hover { border-color: var(--ink); color: var(--ink); }
 
   /* ── TOAST ── */
-  .toast {
-    position: fixed; bottom: 1.2rem; left: 50%; transform: translateX(-50%);
-    background: var(--ink); color: #fff; padding: 0.55rem 1rem; border-radius: 99px;
-    font-size: 0.8rem; font-weight: 600; z-index: 200; opacity: 0; pointer-events: none;
-    transition: opacity 0.3s; white-space: nowrap; max-width: 90vw;
-  }
+  .toast { position: fixed; bottom: 1.2rem; left: 50%; transform: translateX(-50%); background: var(--ink); color: #fff; padding: 0.55rem 1rem; border-radius: 99px; font-size: 0.8rem; font-weight: 600; z-index: 200; opacity: 0; pointer-events: none; transition: opacity 0.3s; white-space: nowrap; max-width: 90vw; }
   .toast.show { opacity: 1; }
 </style>
 </head>
 <body>
 
 <!-- ══ LOADING ══ -->
-<div id="screen-loading" class="screen" style="align-items:center;justify-content:center;background:#fff;">
-  <div style="display:flex;flex-direction:column;align-items:center;gap:1rem;padding:2rem;width:100%;max-width:430px;">
-    <div style="font-family:'Syne',sans-serif;font-size:1.1rem;font-weight:800;color:#1a1a1a;letter-spacing:-0.3px;">DAILY QUIZ</div>
-    <div style="width:40px;height:40px;border:3px solid #f0f0f0;border-top-color:#1a1a1a;border-radius:50%;animation:spin 0.7s linear infinite;"></div>
-    <div id="loading-msg" style="font-size:0.78rem;color:#888;font-weight:600;letter-spacing:0.04em;">Loading...</div>
-    <!-- Debug log — shows each bootstrap step -->
-    <div id="debug-log" style="width:100%;margin-top:0.5rem;font-size:0.68rem;font-family:monospace;color:#555;background:#f5f5f5;border:1px solid #ddd;border-radius:8px;padding:0.75rem;line-height:1.7;max-height:260px;overflow-y:auto;display:none;"></div>
+<div id="screen-loading" class="screen">
+  <div class="loading-inner">
+    <div class="header-logo" style="font-size:1.1rem;">DAILY QUIZ</div>
+    <div class="spinner"></div>
+    <div id="loading-msg" style="font-size:0.78rem;color:var(--ink-muted);font-weight:600;letter-spacing:0.04em;">Loading...</div>
+    <div id="debug-log"></div>
   </div>
 </div>
-<style>@keyframes spin{to{transform:rotate(360deg)}}</style>
 
 <!-- ══ SETUP ══ -->
 <div id="screen-setup" class="screen">
   <div class="setup-card">
     <h1>Daily Quiz</h1>
-    <p>Enter your Google Apps Script Web App URL to load your vocabulary. Once entered, all other devices will connect automatically — you only need to do this once.</p>
+    <p>Enter your Google Apps Script Web App URL to get started. Once entered on any device, all other devices connect automatically.</p>
     <label class="field-label">Apps Script Web App URL</label>
     <input id="setup-url" class="text-input" type="text" placeholder="https://script.google.com/macros/s/.../exec">
-    <button class="btn-primary" onclick="fetchSheet(false, false)">Fetch Vocabulary</button>
+    <button class="btn-primary" onclick="doFirstSetup()">Connect & Load Vocabulary</button>
     <div id="setup-progress" class="progress-wrap hidden">
       <div class="progress-bar-bg"><div id="setup-bar" class="progress-bar-fill"></div></div>
       <div id="setup-msg" class="progress-msg"></div>
@@ -474,9 +280,9 @@
   <div class="home-body">
     <div class="home-hero" id="home-hero-card">
       <div>
-        <div class="home-hero-eyebrow">Hit Rate · YTD</div>
+        <div class="home-hero-eyebrow">Hit Rate · All Time</div>
         <div class="home-hero-big"><span id="home-hit-rate">—</span></div>
-        <div class="home-hero-sub">year to date</div>
+        <div class="home-hero-sub">overall accuracy</div>
       </div>
       <div class="home-hero-right">
         <div class="home-hero-stat">
@@ -512,12 +318,12 @@
         <div class="home-count-left">
           <div id="home-count-plus" class="home-count-num">—</div>
           <div class="home-count-lbl">⚠ Count+ escalations</div>
-          <div class="home-count-sub">words made harder by repeated mistakes</div>
+          <div class="home-count-sub">words with 3+ wrong answers</div>
         </div>
         <div class="home-count-icon">🔺</div>
       </div>
     </div>
-    <div id="home-no-data" class="home-no-data hidden">No quizzes yet this year — hit Start!</div>
+    <div id="home-no-data" class="home-no-data hidden">No quizzes yet — hit Start!</div>
     <button class="btn-start" onclick="startQuiz()">
       <span class="play-circle">▶</span>START QUIZ
     </button>
@@ -526,7 +332,7 @@
 
 <!-- ══ QUIZ ══ -->
 <div id="screen-main" class="screen">
-  <div id="timeout-banner" class="timeout-banner hidden">⏱ Time's up — quiz not recorded. Returning home...</div>
+  <div id="timeout-banner" class="timeout-banner hidden">⏱ Time's up — quiz not saved. Returning home...</div>
   <div class="app-header">
     <span class="header-logo">DAILY QUIZ</span>
     <div class="header-meta">
@@ -567,14 +373,14 @@
       <button class="btn-correct" onclick="markAnswer(true)">✓</button>
       <button class="btn-wrong"   onclick="markAnswer(false)">✗</button>
     </div>
-    <button id="btn-next" class="btn-next hidden" onclick="nextWordIfActive()">Next →</button>
+    <button id="btn-next" class="btn-next hidden" onclick="nextWord()">Next →</button>
   </div>
 </div>
 
 <!-- ══ CONFIG ══ -->
 <div id="screen-config" class="screen">
   <div class="app-header">
-    <button class="btn-back" onclick="goHomeFromConfig()">← Back</button>
+    <button class="btn-back" onclick="goHome()">← Back</button>
     <span class="header-logo">CONFIG</span>
     <div style="width:48px"></div>
   </div>
@@ -584,7 +390,7 @@
       <div class="config-label">Apps Script URL</div>
       <div class="refetch-row">
         <input id="cfg-url" class="config-input" type="text" placeholder="https://script.google.com/macros/s/.../exec">
-        <button class="btn-refetch" onclick="refetchSheet()">Re-fetch</button>
+        <button class="btn-refetch" onclick="doRefetch()">Re-fetch</button>
       </div>
       <div id="refetch-progress" class="refetch-progress hidden">
         <div class="progress-bar-bg"><div id="refetch-bar" class="progress-bar-fill"></div></div>
@@ -611,70 +417,42 @@
       </div>
     </div>
     <div class="config-section-title">Data Management</div>
-    <button class="btn-export" onclick="exportCSV()">⬇ Export local data as CSV</button>
-    <button class="btn-danger" onclick="resetRecords()">⚠ Reset all records</button>
+    <button class="btn-danger" onclick="doResetRecords()">⚠ Reset all records</button>
     <hr class="config-divider">
     <button class="btn-save" id="btn-save-config">Save Config</button>
   </div>
 </div>
 
-<!-- ══ TODAY REPORT ══ -->
+<!-- ══ QUIZ REPORT (after quiz done) ══ -->
 <div id="screen-report" class="screen">
   <div class="app-header">
-    <button class="btn-back" onclick="showHome()">← Home</button>
+    <button class="btn-back" onclick="goHome()">← Home</button>
     <div class="header-meta">
       <span class="header-logo">RESULT</span>
-      <span id="rpt-day" class="ink-pill">Day 1</span>
-      <span id="rpt-time" class="lime-pill">0:00</span>
+      <span id="rpt-score" class="lime-pill">0/0</span>
+      <span id="rpt-time" class="ink-pill">0:00</span>
     </div>
     <div style="width:48px"></div>
   </div>
   <div class="report-body">
     <div class="report-table-wrap">
       <table>
-        <thead><tr><th>POS</th><th>Chinese</th><th>English</th><th>Date</th><th>Cnt</th><th>Result</th><th>Cnt+</th></tr></thead>
+        <thead><tr><th>POS</th><th>Chinese</th><th>English</th><th>Result</th><th>Wrong</th></tr></thead>
         <tbody id="rpt-tbody"></tbody>
       </table>
     </div>
   </div>
-  <div class="report-footer"><button class="btn-newtest" onclick="startQuiz()">▶ New Test</button></div>
-</div>
-
-<!-- ══ SUMMARY REPORT ══ -->
-<div id="screen-summary" class="screen">
-  <div class="app-header">
-    <button class="btn-back" onclick="showHome()">← Home</button>
-    <div class="header-meta">
-      <span class="header-logo">REPORT</span>
-      <span id="sum-type" class="outline-pill">YTD</span>
-      <span id="sum-day" class="ink-pill">Day 1</span>
-    </div>
-    <div style="width:48px"></div>
-  </div>
-  <div class="report-body">
-    <div class="report-table-wrap">
-      <table>
-        <thead><tr><th>Days</th><th>Tested/Total</th><th>✓</th><th>✗</th><th>Hit%</th><th>Count+</th></tr></thead>
-        <tbody id="sum-tbody"></tbody>
-      </table>
-    </div>
-  </div>
-  <div class="summary-footer"><button class="btn-newtest" onclick="startQuiz()">▶ New Test</button></div>
+  <div class="report-footer"><button class="btn-newtest" onclick="startQuiz()">▶ New Quiz</button></div>
 </div>
 
 <!-- ══ MODAL ══ -->
 <div id="modal-report" class="modal-overlay hidden">
   <div class="modal-card">
-    <h3>Choose report type</h3>
+    <h3>View stats</h3>
     <div class="modal-btn-list">
-      <button class="modal-btn" onclick="openReport('today')">📅 Today</button>
-      <div class="past-days-row">
-        <button class="modal-btn" style="flex:1" onclick="openReport('past')">🗓 Past</button>
-        <input id="past-days-input" class="past-days-input" type="number" min="1" max="365" value="7">
-        <span style="font-size:0.82rem;color:var(--ink-muted)">days</span>
-      </div>
+      <button class="modal-btn" onclick="closeModal();goHome();">📊 Home screen stats</button>
     </div>
-    <button class="btn-cancel" onclick="closeReportModal()">Cancel</button>
+    <button class="btn-cancel" onclick="closeModal()">Cancel</button>
   </div>
 </div>
 
@@ -682,104 +460,240 @@
 
 <script>
 // ══════════════════════════════════════════════════
-// STORAGE KEYS
+// CONFIG & STATE
 // ══════════════════════════════════════════════════
-const STORAGE_KEY = 'dailyquiz_data';
-const CONFIG_KEY  = 'dailyquiz_config';
-const SESSION_KEY = 'dailyquiz_session';
+const LS_CONFIG  = 'dq_config';
+const LS_SESSION = 'dq_session';
+const LS_VOCAB   = 'dq_vocab';   // cache vocab content for display
 
-// ══════════════════════════════════════════════════
-// STATE
-// ══════════════════════════════════════════════════
-let config = {
-  sheetUrl:'', direction:'chinese', wordsPerQuiz:15,
-  timeoutMin:15, activeTag:'all'
+let cfg = {
+  sheetUrl: '', direction: 'chinese',
+  wordsPerQuiz: 15, timeoutMin: 15, activeTag: 'all'
 };
-let vocabData = [];
 let session = {
-  day:1, quizWords:[], currentIdx:0, results:[],
-  timerStart:null, timerInterval:null, timeoutTimer:null,
-  elapsed:0, quizDate:null, markedCorrect:null, history:[]
+  day: 1, quizWords: [], currentIdx: 0,
+  results: [],          // [{english, chinese, pos, wasCorrect, wrong}]
+  elapsed: 0, markedCorrect: null,
+  timerStart: null, timerInterval: null, timeoutTimer: null
 };
+let vocabCache = {};    // english → full word object (for display only)
+let availableTags = []; // populated from server
 
-// ══════════════════════════════════════════════════
-// LOCAL STORAGE
-// ══════════════════════════════════════════════════
-function loadAll() {
-  try { const d=localStorage.getItem(STORAGE_KEY); if(d) vocabData=JSON.parse(d); } catch(e){ vocabData=[]; }
-  try { const c=localStorage.getItem(CONFIG_KEY);  if(c) config={...config,...JSON.parse(c)}; } catch(e){}
-  try { const s=localStorage.getItem(SESSION_KEY); if(s){ const v=JSON.parse(s); session.day=v.day||1; session.history=v.history||[]; } } catch(e){}
+function loadLocal() {
+  try { const c = localStorage.getItem(LS_CONFIG);  if (c) cfg     = {...cfg, ...JSON.parse(c)}; } catch(e){}
+  try { const s = localStorage.getItem(LS_SESSION); if (s) { const v = JSON.parse(s); session.day = v.day||1; } } catch(e){}
+  try { const v = localStorage.getItem(LS_VOCAB);   if (v) vocabCache = JSON.parse(v); } catch(e){}
 }
-function saveVocab()    { localStorage.setItem(STORAGE_KEY, JSON.stringify(vocabData)); }
-function saveConfigLS() { localStorage.setItem(CONFIG_KEY,  JSON.stringify(config)); }
-function saveSession()  { localStorage.setItem(SESSION_KEY, JSON.stringify({day:session.day, history:session.history})); }
+function saveCfg()     { localStorage.setItem(LS_CONFIG,  JSON.stringify(cfg)); }
+function saveSession() { localStorage.setItem(LS_SESSION, JSON.stringify({day: session.day})); }
+function saveVocabCache() { localStorage.setItem(LS_VOCAB, JSON.stringify(vocabCache)); }
 
 // ══════════════════════════════════════════════════
-// CLOUD SYNC
+// SCREEN ROUTING
 // ══════════════════════════════════════════════════
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById('screen-' + id).classList.add('active');
+}
+function goHome() {
+  stopTimers();
+  populateTags();
+  loadStats();
+  document.getElementById('home-day').textContent = 'Day ' + session.day;
+  document.getElementById('main-day').textContent  = 'Day ' + session.day;
+  showScreen('home');
+}
+function showConfig() {
+  document.getElementById('cfg-url').value       = cfg.sheetUrl;
+  document.getElementById('cfg-direction').value = cfg.direction;
+  document.getElementById('cfg-words').value     = cfg.wordsPerQuiz;
+  document.getElementById('cfg-timeout').value   = cfg.timeoutMin;
+  document.getElementById('refetch-progress').classList.add('hidden');
+  showScreen('config');
+}
+function showReportModal() { document.getElementById('modal-report').classList.remove('hidden'); }
+function closeModal()      { document.getElementById('modal-report').classList.add('hidden'); }
 
-// Build progress payload (word progress keyed by English)
-function buildProgressPayload() {
-  const wordProgress = {};
-  vocabData.forEach(w => {
-    if (!w.english) return;
-    wordProgress[w.english.trim()] = {
-      tested:         w.tested         || false,
-      testedDate:     w.testedDate     || '',
-      incorrectCount: w.incorrectCount || 0,
-      count:          w.count          || 0
-    };
-  });
-  return { day: session.day, history: session.history, wordProgress, savedAt: new Date().toISOString() };
+// ══════════════════════════════════════════════════
+// DEBUG LOGGER
+// ══════════════════════════════════════════════════
+function dbg(msg, ok) {
+  const log = document.getElementById('debug-log');
+  if (!log) return;
+  log.style.display = 'block';
+  const line = document.createElement('div');
+  line.style.color = ok === false ? '#c92a2a' : ok === true ? '#1d8a38' : '#555';
+  line.textContent  = (ok === true ? '✓ ' : ok === false ? '✗ ' : '• ') + msg;
+  log.appendChild(line);
+  log.scrollTop = log.scrollHeight;
+}
+function setLoadingMsg(msg) {
+  const el = document.getElementById('loading-msg');
+  if (el) el.textContent = msg;
 }
 
-// Build config payload — includes sheetUrl so new devices can bootstrap
-function buildConfigPayload() {
-  return {
-    sheetUrl:     config.sheetUrl,
-    direction:    config.direction,
-    wordsPerQuiz: config.wordsPerQuiz,
-    timeoutMin:   config.timeoutMin,
-    activeTag:    config.activeTag,
-    savedAt:      new Date().toISOString()
-  };
+// ══════════════════════════════════════════════════
+// API HELPERS
+// ══════════════════════════════════════════════════
+function apiUrl(action, params) {
+  let url = cfg.sheetUrl + '?action=' + action + '&t=' + Date.now();
+  if (params) Object.keys(params).forEach(k => { url += '&' + k + '=' + encodeURIComponent(params[k]); });
+  return url;
 }
 
-// Merge cloud progress into local state
-function mergeCloudProgress(cloud) {
-  if (!cloud) return;
-  if ((cloud.day || 0) > session.day) session.day = cloud.day;
-  if (Array.isArray(cloud.history) && cloud.history.length > 0) {
-    const localKeys = new Set(session.history.map(h => h.date + '_' + h.elapsed));
-    cloud.history.forEach(h => {
-      const k = h.date + '_' + h.elapsed;
-      if (!localKeys.has(k)) { session.history.push(h); localKeys.add(k); }
-    });
-    session.history.sort((a, b) => (a.date > b.date ? 1 : -1));
-  }
-  if (cloud.wordProgress) {
-    vocabData.forEach(w => {
-      if (!w.english) return;
-      const cw = cloud.wordProgress[w.english.trim()];
-      if (!cw) return;
-      if ((cw.testedDate || '') > (w.testedDate || '')) {
-        w.tested = cw.tested; w.testedDate = cw.testedDate; w.incorrectCount = cw.incorrectCount;
+async function apiFetch(action, params) {
+  const res  = await fetch(apiUrl(action, params));
+  const json = await res.json();
+  if (json.error) throw new Error(json.error);
+  return json;
+}
+
+async function apiSave(action, data) {
+  const encoded = encodeURIComponent(JSON.stringify(data));
+  const res  = await fetch(cfg.sheetUrl + '?action=' + action + '&data=' + encoded + '&t=' + Date.now());
+  return await res.json();
+}
+
+// ══════════════════════════════════════════════════
+// BOOTSTRAP
+// ══════════════════════════════════════════════════
+loadLocal();
+document.getElementById('btn-save-config').onclick = saveConfigAction;
+
+async function bootstrap() {
+  showScreen('loading');
+  dbg('App started');
+  dbg('Local URL: ' + (cfg.sheetUrl ? cfg.sheetUrl.slice(0,50)+'…' : 'none'));
+
+  // Step 1 — no local URL → try config.json
+  if (!cfg.sheetUrl) {
+    setLoadingMsg('Reading config...');
+    dbg('Fetching config.json...');
+    try {
+      const res = await fetch('./config.json?t=' + Date.now());
+      dbg('config.json HTTP ' + res.status, res.ok);
+      if (res.ok) {
+        const json = await res.json();
+        dbg('config.json: ' + JSON.stringify(json));
+        if (json.sheetUrl && !json.sheetUrl.includes('PASTE_YOUR')) {
+          cfg.sheetUrl = json.sheetUrl;
+          saveCfg();
+          dbg('URL loaded from config.json', true);
+        } else {
+          dbg('config.json has no valid URL', false);
+        }
       }
-      if ((cw.count || 0) > (w.count || 0)) w.count = cw.count;
-    });
+    } catch(e) { dbg('config.json error: ' + e.message, false); }
   }
-  saveVocab(); saveSession();
+
+  // Step 2 — still no URL → show setup
+  if (!cfg.sheetUrl) {
+    dbg('No URL — showing setup screen', false);
+    showScreen('setup');
+    return;
+  }
+
+  // Step 3 — pull cloud config (gets quiz settings from cloud)
+  setLoadingMsg('Syncing settings...');
+  dbg('Pulling cloud config...');
+  try {
+    const cJson = await apiFetch('config');
+    dbg('Cloud config: ' + JSON.stringify(cJson).slice(0,100), true);
+    if (cJson.config) mergeCloudConfig(cJson.config);
+  } catch(e) { dbg('Config pull failed: ' + e.message, false); }
+
+  // Step 4 — pull stats to check if quiz sheet exists
+  setLoadingMsg('Loading stats...');
+  dbg('Fetching stats...');
+  try {
+    const sJson = await apiFetch('stats', { tag: cfg.activeTag });
+    dbg('Stats: ' + JSON.stringify(sJson).slice(0,120), true);
+    if (sJson.needsGeneration) {
+      // First ever use — generate quiz sheet
+      dbg('Quiz sheet empty — generating...', null);
+      setLoadingMsg('Setting up quiz sheet...');
+      await apiFetch('generateQuiz');
+      dbg('Quiz sheet generated', true);
+      // Save config with URL to cloud so other devices can bootstrap
+      await pushConfig();
+    }
+    if (sJson.tags) availableTags = sJson.tags;
+  } catch(e) { dbg('Stats failed: ' + e.message, false); }
+
+  dbg('Bootstrap complete', true);
+  await new Promise(r => setTimeout(r, 800));
+  goHome();
 }
 
-// Merge cloud config into local — including sheetUrl so new devices bootstrap automatically
+bootstrap();
+
+// ══════════════════════════════════════════════════
+// CLOUD CONFIG MERGE
+// ══════════════════════════════════════════════════
 function mergeCloudConfig(cc) {
   if (!cc) return;
-  if (cc.sheetUrl)     config.sheetUrl     = cc.sheetUrl;
-  if (cc.direction)    config.direction    = cc.direction;
-  if (cc.wordsPerQuiz) config.wordsPerQuiz = cc.wordsPerQuiz;
-  if (cc.timeoutMin)   config.timeoutMin   = cc.timeoutMin;
-  if (cc.activeTag)    config.activeTag    = cc.activeTag;
-  saveConfigLS();
+  if (cc.sheetUrl)     cfg.sheetUrl     = cc.sheetUrl;
+  if (cc.direction)    cfg.direction    = cc.direction;
+  if (cc.wordsPerQuiz) cfg.wordsPerQuiz = cc.wordsPerQuiz;
+  if (cc.timeoutMin)   cfg.timeoutMin   = cc.timeoutMin;
+  if (cc.activeTag)    cfg.activeTag    = cc.activeTag;
+  saveCfg();
+}
+
+async function pushConfig() {
+  try {
+    await apiSave('saveConfig', {
+      sheetUrl: cfg.sheetUrl, direction: cfg.direction,
+      wordsPerQuiz: cfg.wordsPerQuiz, timeoutMin: cfg.timeoutMin,
+      activeTag: cfg.activeTag, savedAt: new Date().toISOString()
+    });
+  } catch(e) { console.warn('Config push failed:', e.message); }
+}
+
+// ══════════════════════════════════════════════════
+// HOME STATS
+// ══════════════════════════════════════════════════
+async function loadStats() {
+  setSyncBar('syncing', 'Loading stats...');
+  try {
+    const json = await apiFetch('stats', { tag: cfg.activeTag });
+    if (json.tags) { availableTags = json.tags; populateTags(); }
+    renderStats(json.stats);
+    setSyncBar('synced', '✓ Updated ' + new Date().toLocaleTimeString());
+  } catch(e) {
+    setSyncBar('error', '✗ Could not load stats');
+  }
+}
+
+function renderStats(stats) {
+  const heroCard = document.getElementById('home-hero-card');
+  const progWrap = document.getElementById('home-prog-wrap');
+  const statGrid = document.getElementById('home-stat-grid');
+  const noData   = document.getElementById('home-no-data');
+
+  if (!stats || stats.tested === 0) {
+    heroCard.classList.add('hidden');
+    progWrap.classList.add('hidden');
+    statGrid.classList.add('hidden');
+    noData.classList.remove('hidden');
+    return;
+  }
+
+  heroCard.classList.remove('hidden');
+  progWrap.classList.remove('hidden');
+  statGrid.classList.remove('hidden');
+  noData.classList.add('hidden');
+
+  const pctNum = stats.total > 0 ? (stats.tested / stats.total * 100) : 0;
+  document.getElementById('home-hit-rate').textContent   = stats.hitRate + '%';
+  document.getElementById('home-days').textContent       = stats.days;
+  document.getElementById('home-tested').textContent     = stats.tested;
+  document.getElementById('home-total').textContent      = '/' + stats.total;
+  document.getElementById('home-pct').textContent        = pctNum.toFixed(1) + '%';
+  document.getElementById('home-correct').textContent    = stats.correct;
+  document.getElementById('home-wrong').textContent      = stats.wrong;
+  document.getElementById('home-count-plus').textContent = stats.countPlus;
+  document.getElementById('home-progress-fill').style.width = Math.min(pctNum, 100) + '%';
 }
 
 function setSyncBar(state, msg) {
@@ -789,401 +703,136 @@ function setSyncBar(state, msg) {
   bar.className = 'sync-bar ' + state;
   bar.classList.remove('hidden');
   txt.textContent = msg;
-  if (state === 'synced' || state === 'error') {
-    setTimeout(() => bar.classList.add('hidden'), 3000);
-  }
+  if (state === 'synced' || state === 'error') setTimeout(() => bar.classList.add('hidden'), 3000);
 }
 
-// Pull both progress AND config from cloud, then merge
-async function pullProgress() {
-  if (!config.sheetUrl) return;
-  setSyncBar('syncing', 'Syncing from cloud...');
-  try {
-    const base = config.sheetUrl;
-    const [pRes, cRes] = await Promise.all([
-      fetch(base + '?action=progress&t=' + Date.now()),
-      fetch(base + '?action=config&t='   + Date.now())
-    ]);
-    if (pRes.ok) {
-      const pJson = await pRes.json();
-      if (pJson.progress) mergeCloudProgress(pJson.progress);
-    }
-    if (cRes.ok) {
-      const cJson = await cRes.json();
-      if (cJson.config) mergeCloudConfig(cJson.config);
-    }
-    setSyncBar('synced', '✓ Synced ' + new Date().toLocaleTimeString());
-    renderHomeSummary();
-    document.getElementById('home-day').textContent = 'Day ' + session.day;
-  } catch (e) {
-    setSyncBar('error', '✗ Sync failed — using local data');
-  }
-}
-
-// Push progress to cloud via GET (avoids CORS issues with POST)
-async function pushProgress() {
-  if (!config.sheetUrl) return;
-  try {
-    const data = encodeURIComponent(JSON.stringify(buildProgressPayload()));
-    await fetch(config.sheetUrl + '?action=saveProgress&data=' + data);
-  } catch (e) { console.warn('Progress push failed:', e.message); }
-}
-
-// Push config to cloud via GET (avoids CORS issues with POST)
-async function pushConfig() {
-  if (!config.sheetUrl) return;
-  try {
-    const data = encodeURIComponent(JSON.stringify(buildConfigPayload()));
-    await fetch(config.sheetUrl + '?action=saveConfig&data=' + data);
-  } catch (e) { console.warn('Config push failed:', e.message); }
-}
-
-// ══════════════════════════════════════════════════
-// INIT
-// ══════════════════════════════════════════════════
-loadAll();
-document.getElementById('btn-save-config').onclick = saveConfigAction;
-
-// Debug logger — shows in loading screen
-function dbg(msg, ok) {
-  const log = document.getElementById('debug-log');
-  if (!log) return;
-  log.style.display = 'block';
-  const line = document.createElement('div');
-  line.style.color = ok === false ? '#c92a2a' : ok === true ? '#1d8a38' : '#555';
-  line.textContent = (ok === true ? '✓ ' : ok === false ? '✗ ' : '• ') + msg;
-  log.appendChild(line);
-  log.scrollTop = log.scrollHeight;
-}
-
-function setLoadingMsg(msg) {
-  const el = document.getElementById('loading-msg');
-  if (el) el.textContent = msg;
-}
-
-async function bootstrap() {
-  showScreen('loading');
-  dbg('App started');
-  dbg('Local URL: ' + (config.sheetUrl ? config.sheetUrl.slice(0,40)+'…' : 'none'));
-  dbg('Local vocab: ' + vocabData.length + ' words');
-  dbg('Local history: ' + session.history.length + ' quizzes');
-
-  // ── Step 1: No local URL → try config.json ──
-  if (!config.sheetUrl) {
-    setLoadingMsg('Reading config...');
-    dbg('No local URL — fetching config.json');
-    try {
-      const res = await fetch('./config.json?t=' + Date.now());
-      dbg('config.json HTTP ' + res.status, res.ok);
-      if (res.ok) {
-        const json = await res.json();
-        dbg('config.json content: ' + JSON.stringify(json));
-        if (json.sheetUrl && !json.sheetUrl.includes('PASTE_YOUR')) {
-          config.sheetUrl = json.sheetUrl;
-          saveConfigLS();
-          dbg('URL set from config.json', true);
-        } else {
-          dbg('config.json has no valid URL', false);
-        }
-      }
-    } catch(e) {
-      dbg('config.json fetch error: ' + e.message, false);
-    }
-  }
-
-  // ── Step 2: Still no URL → show setup ──
-  if (!config.sheetUrl) {
-    dbg('No URL found — showing setup screen', false);
-    showScreen('setup');
-    return;
-  }
-
-  // ── Step 3: Pull cloud config (gets quiz settings + confirms URL works) ──
-  setLoadingMsg('Syncing settings...');
-  dbg('Pulling cloud config from: ' + config.sheetUrl.slice(0,40)+'…');
-  try {
-    const cRes = await fetch(config.sheetUrl + '?action=config&t=' + Date.now());
-    dbg('Config pull HTTP ' + cRes.status, cRes.ok);
-    if (cRes.ok) {
-      const cJson = await cRes.json();
-      dbg('Cloud config raw: ' + JSON.stringify(cJson).slice(0,120));
-      if (cJson.config) {
-        mergeCloudConfig(cJson.config);
-        dbg('Cloud config merged', true);
-      } else {
-        dbg('No config in cloud yet (first time?)', null);
-      }
-    }
-  } catch(e) {
-    dbg('Config pull error: ' + e.message, false);
-  }
-
-  // ── Step 4: Pull cloud progress ──
-  setLoadingMsg('Syncing progress...');
-  dbg('Pulling cloud progress...');
-  try {
-    const pRes = await fetch(config.sheetUrl + '?action=progress&t=' + Date.now());
-    dbg('Progress pull HTTP ' + pRes.status, pRes.ok);
-    if (pRes.ok) {
-      const pJson = await pRes.json();
-      dbg('Cloud progress raw: ' + JSON.stringify(pJson).slice(0,120));
-      if (pJson.progress) {
-        const before = session.history.length;
-        mergeCloudProgress(pJson.progress);
-        dbg('Progress merged — history: ' + before + ' → ' + session.history.length, true);
-      } else {
-        dbg('No progress in cloud yet', null);
-      }
-    }
-  } catch(e) {
-    dbg('Progress pull error: ' + e.message, false);
-  }
-
-  // ── Step 5: Have vocab locally → go home ──
-  if (vocabData.length > 0) {
-    dbg('Vocab already local (' + vocabData.length + ' words) — going home', true);
-    // Small delay so user can read debug log if needed
-    await new Promise(r => setTimeout(r, 1200));
-    showHome();
-    return;
-  }
-
-  // ── Step 6: No vocab → fetch from sheet ──
-  setLoadingMsg('Loading vocabulary...');
-  dbg('No local vocab — fetching from sheet...');
-  await fetchSheet(false, false, true);
-}
-
-bootstrap();
-
-// ══════════════════════════════════════════════════
-// NAVIGATION
-// ══════════════════════════════════════════════════
-function showScreen(id) {
-  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-  document.getElementById('screen-' + id).classList.add('active');
-}
-function showHome() {
-  populateTagDropdowns();
-  renderHomeSummary();
-  document.getElementById('home-day').textContent = 'Day ' + session.day;
-  showScreen('home');
-}
-function populateTagDropdowns() {
-  const tags = [...new Set(vocabData.map(w => (w.tag||'').trim()).filter(t => t))].sort();
+function populateTags() {
   ['home-tag-select','quiz-tag-select'].forEach(id => {
     const sel = document.getElementById(id);
     if (!sel) return;
+    const prev = sel.value;
     sel.innerHTML = '<option value="all">All tags</option>';
-    tags.forEach(t => {
+    availableTags.forEach(t => {
       const opt = document.createElement('option');
       opt.value = t; opt.textContent = t; sel.appendChild(opt);
     });
-    sel.value = config.activeTag || 'all';
+    sel.value = cfg.activeTag || 'all';
     sel.classList.toggle('active-tag', sel.value !== 'all');
   });
 }
+
 function onTagChange(tag) {
-  config.activeTag = tag; saveConfigLS();
+  cfg.activeTag = tag; saveCfg(); pushConfig();
   ['home-tag-select','quiz-tag-select'].forEach(id => {
     const sel = document.getElementById(id);
     if (sel) { sel.value = tag; sel.classList.toggle('active-tag', tag !== 'all'); }
   });
-  renderHomeSummary();
-}
-function showConfig() {
-  document.getElementById('cfg-url').value       = config.sheetUrl;
-  document.getElementById('cfg-direction').value = config.direction;
-  document.getElementById('cfg-words').value     = config.wordsPerQuiz;
-  document.getElementById('cfg-timeout').value   = config.timeoutMin || 15;
-  document.getElementById('refetch-progress').classList.add('hidden');
-  showScreen('config');
-}
-function goHomeFromConfig() { showHome(); }
-
-// ══════════════════════════════════════════════════
-// HOME SUMMARY
-// ══════════════════════════════════════════════════
-function renderHomeSummary() {
-  const year    = new Date().getFullYear();
-  const records = session.history.filter(h => h.date && h.date.startsWith(String(year)));
-  const heroCard = document.getElementById('home-hero-card');
-  const progWrap = document.getElementById('home-prog-wrap');
-  const statGrid = document.getElementById('home-stat-grid');
-  const noDataEl = document.getElementById('home-no-data');
-  if (records.length === 0) {
-    heroCard.classList.add('hidden'); progWrap.classList.add('hidden');
-    statGrid.classList.add('hidden'); noDataEl.classList.remove('hidden'); return;
-  }
-  heroCard.classList.remove('hidden'); progWrap.classList.remove('hidden');
-  statGrid.classList.remove('hidden'); noDataEl.classList.add('hidden');
-  const tag = config.activeTag || 'all';
-  let correct=0, wrong=0, countPlus=0, testedCount=0;
-  const uniqueDates = new Set();
-  records.forEach(quiz => {
-    if (quiz.date) uniqueDates.add(quiz.date);
-    (quiz.results||[]).forEach(r => {
-      const w = vocabData[r.wordIdx]; if (!w) return;
-      if (tag !== 'all' && (w.tag||'').trim() !== tag) return;
-      if (r.correct) correct++; else wrong++;
-      if (r.countChanged) countPlus++; testedCount++;
-    });
-  });
-  const hitRate    = testedCount > 0 ? Math.round(correct/testedCount*100)+'%' : '—';
-  const activeTotal = config.activeTag === 'all'
-    ? vocabData.length
-    : vocabData.filter(w => (w.tag||'').trim() === config.activeTag).length;
-  const pctNum = activeTotal > 0 ? (testedCount / activeTotal * 100) : 0;
-  const pctStr = activeTotal > 0 ? pctNum.toFixed(1)+'%' : '0%';
-  document.getElementById('home-hit-rate').textContent   = hitRate;
-  document.getElementById('home-days').textContent       = uniqueDates.size;
-  document.getElementById('home-tested').textContent     = testedCount;
-  document.getElementById('home-total').textContent      = '/' + activeTotal;
-  document.getElementById('home-pct').textContent        = pctStr;
-  document.getElementById('home-correct').textContent    = correct;
-  document.getElementById('home-wrong').textContent      = wrong;
-  document.getElementById('home-count-plus').textContent = countPlus;
-  document.getElementById('home-progress-fill').style.width = Math.min(pctNum, 100) + '%';
+  loadStats();
 }
 
 // ══════════════════════════════════════════════════
-// FETCH VOCAB
+// FIRST SETUP (URL entry screen)
 // ══════════════════════════════════════════════════
-async function fetchSheet(fromConfig, preserveAppData, silent) {
-  const rawUrl = fromConfig
-    ? document.getElementById('cfg-url').value.trim()
-    : (silent ? config.sheetUrl : document.getElementById('setup-url').value.trim());
-  if (!rawUrl) { showToast('Please enter the Apps Script URL'); return; }
-  if (!rawUrl.includes('script.google.com')) { showToast('Needs a script.google.com /exec URL'); return; }
+async function doFirstSetup() {
+  const url = document.getElementById('setup-url').value.trim();
+  if (!url) { showToast('Please enter the URL'); return; }
+  if (!url.includes('script.google.com')) { showToast('Must be a script.google.com URL'); return; }
 
-  let bar, msg, wrap;
-  if (silent) {
-    // Use the loading screen — just update the message text
-    const lm = document.getElementById('loading-msg');
-    bar  = { style: {} };   // dummy — we won't update a progress bar
-    msg  = { set textContent(v){ if(lm) lm.textContent = v; } };
-    wrap = { classList: { remove(){}, add(){} } };
-  } else if (!fromConfig) {
-    wrap=document.getElementById('setup-progress');
-    bar=document.getElementById('setup-bar');
-    msg=document.getElementById('setup-msg');
-  } else {
-    wrap=document.getElementById('refetch-progress');
-    bar=document.getElementById('refetch-bar');
-    msg=document.getElementById('refetch-msg');
-  }
-  if (!silent) wrap.classList.remove('hidden');
-  bar.style.width='20%'; msg.textContent='Connecting...';
+  const wrap = document.getElementById('setup-progress');
+  const bar  = document.getElementById('setup-bar');
+  const msg  = document.getElementById('setup-msg');
+  wrap.classList.remove('hidden');
+
   try {
-    bar.style.width='45%'; msg.textContent='Fetching vocab...';
-    const res  = await fetch(rawUrl + '?action=vocab&t=' + Date.now());
-    if (!res.ok) throw new Error('HTTP ' + res.status);
-    bar.style.width='70%'; msg.textContent='Parsing...';
-    const json = await res.json();
-    if (!json.headers||!json.rows) throw new Error('Unexpected response format');
-    const sampleRow = json.rows.find(r => Object.keys(r).length > 0) || {};
-    const rowKeyMap = {};
-    Object.keys(sampleRow).forEach(k => { rowKeyMap[k.trim().toLowerCase()] = k; });
-    const getVal = (row, colName) => {
-      const actualKey = rowKeyMap[colName.toLowerCase()];
-      if (!actualKey) return '';
-      const val = row[actualKey];
-      return String(val === null || val === undefined ? '' : val).trim();
-    };
-    const newData = json.rows
-      .filter(r => Object.values(r).some(v => String(v).trim()))
-      .map(r => ({
-        pos:getVal(r,'pos'), chinese:getVal(r,'chinese'), english:getVal(r,'english'),
-        date:parseSheetDate(getVal(r,'date')), count:parseCount(getVal(r,'count')),
-        example:getVal(r,'example'), tag:getVal(r,'tag'),
-        tested:false, testedDate:'', incorrectCount:0
-      }));
-    if (newData.length===0) throw new Error('No rows found');
-    if (preserveAppData && vocabData.length > 0) {
-      const oldMap = {};
-      vocabData.forEach(w => { if (w.english) oldMap[w.english.trim()] = w; });
-      newData.forEach(w => {
-        const key = (w.english || '').trim();
-        if (key && oldMap[key]) {
-          w.tested=oldMap[key].tested; w.testedDate=oldMap[key].testedDate;
-          w.incorrectCount=oldMap[key].incorrectCount; w.count=oldMap[key].count;
-        }
-      });
-    }
-    vocabData = newData; config.sheetUrl = rawUrl; saveConfigLS(); saveVocab();
-    bar.style.width='85%'; msg.textContent='Syncing from cloud...';
-    // Pull progress + config from cloud right after fetching vocab
-    try {
-      const [pRes, cRes] = await Promise.all([
-        fetch(rawUrl + '?action=progress&t=' + Date.now()),
-        fetch(rawUrl + '?action=config&t='   + Date.now())
-      ]);
-      if (pRes.ok) { const pj = await pRes.json(); if (pj.progress) mergeCloudProgress(pj.progress); }
-      if (cRes.ok) { const cj = await cRes.json(); if (cj.config)   mergeCloudConfig(cj.config); }
-    } catch(pe) { /* silent — vocab is loaded, sync can retry later */ }
-    bar.style.width='100%';
-    msg.textContent = `✓ Loaded ${vocabData.length} words!`;
-    // Push config (including sheetUrl) so other devices can bootstrap without entering it
-    pushConfig();
-    if (silent || !fromConfig) { setTimeout(()=>showHome(), silent ? 0 : 900); }
-    else { showToast(`✓ Re-fetched ${vocabData.length} words`); }
-  } catch(e) {
-    bar.style.width='0%';
-    if (silent) {
-      // Auto-fetch failed — fall back to setup screen
-      showScreen('setup');
-    } else {
-      msg.textContent = `✗ ${e.message}. Check: (1) deployed as Web App, (2) access=Anyone, (3) /exec URL.`;
-    }
-  }
-}
-async function refetchSheet() { await fetchSheet(true, true); }
+    bar.style.width = '20%'; msg.textContent = 'Connecting...';
+    cfg.sheetUrl = url; saveCfg();
 
-function parseCount(val) {
-  if (val === null || val === undefined || String(val).trim() === '') return 0;
-  const n = parseFloat(String(val).trim()); return isNaN(n) ? 0 : Math.round(n);
-}
-function parseSheetDate(val) {
-  if (!val || val==='') return '';
-  const num = Number(val);
-  if (!isNaN(num) && num>1000 && !/[\/\-]/.test(String(val))) {
-    const d = new Date(Math.round((num-25569)*86400*1000));
-    return `${String(d.getUTCDate()).padStart(2,'0')}/${String(d.getUTCMonth()+1).padStart(2,'0')}/${String(d.getUTCFullYear()).slice(-2)}`;
+    bar.style.width = '40%'; msg.textContent = 'Checking stats...';
+    const sJson = await apiFetch('stats');
+    if (sJson.tags) availableTags = sJson.tags;
+
+    if (sJson.needsGeneration) {
+      bar.style.width = '60%'; msg.textContent = 'Generating quiz sheet...';
+      await apiFetch('generateQuiz');
+    }
+
+    bar.style.width = '80%'; msg.textContent = 'Saving config to cloud...';
+    await pushConfig();
+
+    bar.style.width = '100%'; msg.textContent = '✓ All set!';
+    setTimeout(() => goHome(), 800);
+  } catch(e) {
+    bar.style.width = '0%';
+    msg.textContent = '✗ ' + e.message + '. Check the URL and try again.';
   }
-  return val;
 }
 
 // ══════════════════════════════════════════════════
 // QUIZ
 // ══════════════════════════════════════════════════
-function startQuiz() {
-  stopAllTimers();
-  document.getElementById('timeout-banner').classList.add('hidden');
-  const tag = config.activeTag || 'all';
-  const inScope = vocabData.map((w,i) => ({i,w})).filter(({w}) => tag==='all' || (w.tag||'').trim()===tag);
-  let pool = inScope.filter(({w}) => !w.tested);
-  if (pool.length === 0) {
-    inScope.forEach(({w}) => { w.tested=false; w.testedDate=''; });
-    saveVocab(); pool = inScope;
-    showToast(tag==='all' ? 'All words tested — reshuffling!' : `All "${tag}" words tested — reshuffling!`);
+async function startQuiz() {
+  stopTimers();
+  showScreen('loading');
+  setLoadingMsg('Fetching words...');
+
+  try {
+    const json = await apiFetch('quizWords', {
+      n: cfg.wordsPerQuiz, tag: cfg.activeTag
+    });
+
+    if (json.needsGeneration) {
+      setLoadingMsg('Regenerating quiz sheet...');
+      await apiFetch('generateQuiz');
+      return startQuiz(); // retry
+    }
+
+    if (json.allTested) {
+      // All words tested — regenerate and start fresh
+      setLoadingMsg('All words tested! Reshuffling...');
+      showToast('All words tested — starting fresh!');
+      await apiFetch('generateQuiz');
+      return startQuiz();
+    }
+
+    if (!json.words || json.words.length === 0) {
+      showToast('No words available');
+      goHome(); return;
+    }
+
+    // Cache vocab for display
+    json.words.forEach(w => { if (w.english) vocabCache[w.english] = w; });
+    saveVocabCache();
+
+    session.quizWords   = json.words;
+    session.currentIdx  = 0;
+    session.results     = [];
+    session.elapsed     = 0;
+    session.markedCorrect = null;
+
+    renderWord();
+    updateQuizHeader();
+    startTimer();
+    startTimeoutTimer();
+    showScreen('main');
+
+  } catch(e) {
+    showToast('Error: ' + e.message);
+    goHome();
   }
-  const shuffled = [...pool].sort(()=>Math.random()-0.5);
-  const selected = shuffled.slice(0, config.wordsPerQuiz);
-  session.quizWords=selected.map(x=>x.i); session.currentIdx=0;
-  session.results=[]; session.elapsed=0; session.quizDate=todayStr(); session.markedCorrect=null;
-  renderWord(); updateQuizHeader(); startTimer(); startTimeoutTimer(); showScreen('main');
 }
 
 function renderWord() {
-  const w = vocabData[session.quizWords[session.currentIdx]];
+  const w  = session.quizWords[session.currentIdx];
+  const cn = cfg.direction === 'chinese';
   session.markedCorrect = null;
-  const cn = config.direction==='chinese';
+
   document.getElementById('q-chinese').textContent = cn ? (w.chinese||'—') : (w.english||'—');
   document.getElementById('q-pos').textContent     = w.pos||'—';
   document.getElementById('q-date').textContent    = w.date||'—';
-  document.getElementById('q-count').textContent   = '×'+(w.count||0);
+  document.getElementById('q-count').textContent   = '×' + (w.wrong||0);
   document.getElementById('q-english').textContent = cn ? (w.english||'—') : (w.chinese||'—');
   document.getElementById('q-example').textContent = w.example||'';
+
   document.getElementById('answer-area').classList.add('hidden');
   document.getElementById('btn-answer').classList.remove('hidden');
   document.getElementById('vx-row').classList.add('hidden');
@@ -1194,178 +843,174 @@ function revealAnswer() {
   document.getElementById('answer-area').classList.remove('hidden');
   document.getElementById('btn-answer').classList.add('hidden');
   document.getElementById('vx-row').classList.remove('hidden');
-  const btnNext = document.getElementById('btn-next');
-  btnNext.classList.remove('hidden'); btnNext.classList.remove('active');
+  const n = document.getElementById('btn-next');
+  n.classList.remove('hidden'); n.classList.remove('active');
 }
 
 function markAnswer(correct) {
   if (session.markedCorrect !== null) return;
   session.markedCorrect = correct;
   document.getElementById('btn-next').classList.add('active');
-  const wordIdx = session.quizWords[session.currentIdx];
-  const w = vocabData[wordIdx];
-  let countChanged = false;
-  if (correct) { w.tested=true; w.testedDate=todayStr(); w.incorrectCount=0; }
-  else {
-    w.incorrectCount=(w.incorrectCount||0)+1;
-    if (w.incorrectCount>=3) { w.count=(w.count||0)+1; w.incorrectCount=0; countChanged=true; }
-  }
-  session.results.push({wordIdx, correct, countChanged});
-  saveVocab();
-  if (session.currentIdx+1 >= session.quizWords.length) { setTimeout(()=>finishQuiz(), 380); }
-}
 
-function nextWordIfActive() {
-  if (!document.getElementById('btn-next').classList.contains('active')) return;
-  session.currentIdx++; updateQuizHeader(); renderWord();
-}
-
-function finishQuiz() {
-  stopAllTimers();
-  const today = todayStr();
-  const datesWithQuiz = new Set(session.history.map(h => h.date));
-  if (session.history.length > 0 && !datesWithQuiz.has(today)) session.day++;
-  session.history.push({
-    date:today, elapsed:session.elapsed, day:session.day,
-    results:session.results.map(r=>({...r}))
+  const w = session.quizWords[session.currentIdx];
+  session.results.push({
+    english:   w.english,
+    chinese:   w.chinese,
+    pos:       w.pos,
+    wasCorrect: correct,
+    wrong:     w.wrong || 0
   });
-  saveSession();
-  // Push to cloud (fire-and-forget)
-  pushProgress();
-  showTodayReport(session.history[session.history.length-1]);
+
+  // Last word — finish
+  if (session.currentIdx + 1 >= session.quizWords.length) {
+    setTimeout(() => finishQuiz(), 380);
+  }
+}
+
+function nextWord() {
+  if (!document.getElementById('btn-next').classList.contains('active')) return;
+  session.currentIdx++;
+  updateQuizHeader();
+  renderWord();
+}
+
+async function finishQuiz() {
+  stopTimers();
+
+  // Save results to cloud
+  try {
+    await apiSave('saveResults', session.results.map(r => ({
+      english:    r.english,
+      wasCorrect: r.wasCorrect
+    })));
+    // Increment day counter if this is the first quiz of a new day
+    const today = new Date().toISOString().slice(0,10);
+    const lastDay = localStorage.getItem('dq_lastQuizDate');
+    if (lastDay !== today) {
+      session.day++;
+      localStorage.setItem('dq_lastQuizDate', today);
+      saveSession();
+    }
+  } catch(e) {
+    showToast('Warning: results may not have saved: ' + e.message);
+  }
+
+  showQuizReport();
+}
+
+function showQuizReport() {
+  const correct = session.results.filter(r => r.wasCorrect).length;
+  const total   = session.results.length;
+  document.getElementById('rpt-score').textContent = correct + '/' + total;
+  document.getElementById('rpt-time').textContent  = fmtTime(session.elapsed);
+
+  const tbody = document.getElementById('rpt-tbody');
+  tbody.innerHTML = '';
+  session.results.forEach(r => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${esc(r.pos)}</td><td>${esc(r.chinese)}</td><td>${esc(r.english)}</td><td class="${r.wasCorrect?'result-v':'result-x'}">${r.wasCorrect?'✓':'✗'}</td><td>${esc(String(r.wrong||0))}</td>`;
+    tbody.appendChild(tr);
+  });
+  showScreen('report');
+}
+
+function updateQuizHeader() {
+  document.getElementById('main-day').textContent = 'Day ' + session.day;
+  const cur = Math.min(session.currentIdx+1, session.quizWords.length);
+  const tot = session.quizWords.length;
+  document.getElementById('main-progress').textContent = String(cur).padStart(2,'0') + '/' + String(tot).padStart(2,'0');
+  const fill = document.getElementById('quiz-strip-fill');
+  if (fill) fill.style.width = (cur/tot*100) + '%';
 }
 
 // ══════════════════════════════════════════════════
-// TIMER
+// TIMERS
 // ══════════════════════════════════════════════════
 function startTimer() {
-  session.timerStart = Date.now() - session.elapsed*1000;
-  session.timerInterval = setInterval(()=>{
-    session.elapsed = Math.floor((Date.now()-session.timerStart)/1000);
+  session.timerStart = Date.now() - session.elapsed * 1000;
+  session.timerInterval = setInterval(() => {
+    session.elapsed = Math.floor((Date.now() - session.timerStart) / 1000);
     document.getElementById('main-timer').textContent = fmtTime(session.elapsed);
   }, 1000);
 }
 function startTimeoutTimer() {
-  const ms = (config.timeoutMin||15)*60*1000;
-  session.timeoutTimer = setTimeout(()=>{
-    stopAllTimers();
+  const ms = (cfg.timeoutMin || 15) * 60 * 1000;
+  session.timeoutTimer = setTimeout(() => {
+    stopTimers();
     document.getElementById('timeout-banner').classList.remove('hidden');
-    setTimeout(()=>{ document.getElementById('timeout-banner').classList.add('hidden'); showHome(); }, 3000);
+    setTimeout(() => {
+      document.getElementById('timeout-banner').classList.add('hidden');
+      goHome();
+    }, 3000);
   }, ms);
 }
-function stopAllTimers() {
-  if (session.timerInterval) { clearInterval(session.timerInterval); session.timerInterval=null; }
-  if (session.timeoutTimer)  { clearTimeout(session.timeoutTimer);   session.timeoutTimer=null; }
+function stopTimers() {
+  if (session.timerInterval) { clearInterval(session.timerInterval); session.timerInterval = null; }
+  if (session.timeoutTimer)  { clearTimeout(session.timeoutTimer);   session.timeoutTimer  = null; }
+  document.getElementById('timeout-banner').classList.add('hidden');
 }
-function fmtTime(s) { return Math.floor(s/60)+':'+String(s%60).padStart(2,'0'); }
-
-function updateQuizHeader() {
-  document.getElementById('main-day').textContent = 'Day '+session.day;
-  const cur=Math.min(session.currentIdx+1, session.quizWords.length);
-  const tot=session.quizWords.length;
-  document.getElementById('main-progress').textContent = String(cur).padStart(2,'0')+'/'+String(tot).padStart(2,'0');
-  const fill = document.getElementById('quiz-strip-fill');
-  if (fill) fill.style.width = (cur/tot*100)+'%';
-}
+function fmtTime(s) { return Math.floor(s/60) + ':' + String(s%60).padStart(2,'0'); }
 
 // ══════════════════════════════════════════════════
-// CONFIG
+// CONFIG ACTIONS
 // ══════════════════════════════════════════════════
-function saveConfigAction() {
-  config.sheetUrl     = document.getElementById('cfg-url').value.trim();
-  config.direction    = document.getElementById('cfg-direction').value;
-  config.wordsPerQuiz = Math.max(1, parseInt(document.getElementById('cfg-words').value)||15);
-  config.timeoutMin   = Math.min(60, Math.max(1, parseInt(document.getElementById('cfg-timeout').value)||15));
-  saveConfigLS();
-  // Push quiz settings (not sheetUrl) to cloud so other devices pick them up
-  pushConfig();
-  showToast('Config saved'); setTimeout(()=>showHome(), 500);
-}
-function resetRecords() {
-  if (!confirm('Reset all tested flags, incorrect counts and quiz history? This cannot be undone.')) return;
-  vocabData.forEach(w=>{ w.tested=false; w.testedDate=''; w.incorrectCount=0; w.count=0; });
-  session.history=[]; session.day=1; saveVocab(); saveSession();
-  // Push wiped state to cloud so all devices are reset
-  pushProgress();
-  showToast('All records reset'); setTimeout(()=>showHome(), 500);
-}
-function exportCSV() {
-  if (!vocabData.length) { showToast('No data to export'); return; }
-  const headers=['pos','chinese','english','date','count','example','tag','tested','testedDate','incorrectCount'];
-  const esc2 = v=>{ const s=String(v??''); return (s.includes(',')||s.includes('"')||s.includes('\n'))?'"'+s.replace(/"/g,'""')+'"':s; };
-  const rows=[headers,...vocabData.map(w=>headers.map(h=>esc2(w[h])))];
-  const csv=rows.map(r=>r.join(',')).join('\r\n');
-  const blob=new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8;'});
-  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='daily_quiz_data.csv'; a.click();
-  showToast('CSV exported');
+async function saveConfigAction() {
+  cfg.sheetUrl     = document.getElementById('cfg-url').value.trim();
+  cfg.direction    = document.getElementById('cfg-direction').value;
+  cfg.wordsPerQuiz = Math.max(1, parseInt(document.getElementById('cfg-words').value)||15);
+  cfg.timeoutMin   = Math.min(60, Math.max(1, parseInt(document.getElementById('cfg-timeout').value)||15));
+  saveCfg();
+  await pushConfig();
+  showToast('Config saved');
+  setTimeout(() => goHome(), 500);
 }
 
-// ══════════════════════════════════════════════════
-// REPORTS
-// ══════════════════════════════════════════════════
-function showReportModal()  { document.getElementById('modal-report').classList.remove('hidden'); }
-function closeReportModal() { document.getElementById('modal-report').classList.add('hidden'); }
-function openReport(type) {
-  closeReportModal();
-  if (type==='today') {
-    if (!session.history.length) { showToast('No quiz completed yet'); return; }
-    showTodayReport(session.history[session.history.length-1]);
-  } else if (type==='past') {
-    const days=parseInt(document.getElementById('past-days-input').value)||7;
-    const cutoff=new Date(); cutoff.setDate(cutoff.getDate()-days);
-    const cutoffStr=cutoff.toISOString().slice(0,10);
-    showSummaryReport('Past '+days+' days', session.history.filter(h=>h.date>=cutoffStr));
+async function doRefetch() {
+  const url = document.getElementById('cfg-url').value.trim();
+  if (!url) { showToast('Enter URL first'); return; }
+  cfg.sheetUrl = url; saveCfg();
+
+  const wrap = document.getElementById('refetch-progress');
+  const bar  = document.getElementById('refetch-bar');
+  const msg  = document.getElementById('refetch-msg');
+  wrap.classList.remove('hidden');
+
+  try {
+    bar.style.width = '30%'; msg.textContent = 'Fetching latest vocab...';
+    const json = await apiFetch('refetch');
+    bar.style.width = '70%'; msg.textContent = 'Saving config...';
+    await pushConfig();
+    bar.style.width = '100%';
+    msg.textContent = `✓ Done — ${json.total} words (${json.carried} carried, ${json.added} new)`;
+    showToast('Vocab refreshed!');
+  } catch(e) {
+    bar.style.width = '0%';
+    msg.textContent = '✗ ' + e.message;
   }
 }
-function showTodayReport(quizRecord) {
-  const today=quizRecord.date||todayStr();
-  const todayRecords=session.history.filter(h=>h.date===today);
-  const allResults=todayRecords.flatMap(q=>q.results||[]);
-  const totalElapsed=todayRecords.reduce((sum,q)=>sum+(q.elapsed||0),0);
-  document.getElementById('rpt-day').textContent  = 'Day '+quizRecord.day;
-  document.getElementById('rpt-time').textContent = fmtTime(totalElapsed);
-  const tbody=document.getElementById('rpt-tbody'); tbody.innerHTML='';
-  if (allResults.length===0) {
-    tbody.innerHTML='<tr class="no-data-row"><td colspan="7">No words tested today yet</td></tr>';
-  } else {
-    allResults.forEach(r=>{
-      const w=vocabData[r.wordIdx]; if(!w) return;
-      const tr=document.createElement('tr');
-      tr.innerHTML=`<td>${esc(w.pos)}</td><td>${esc(w.chinese)}</td><td>${esc(w.english)}</td><td>${esc(w.date)}</td><td>${esc(String(w.count))}</td><td class="${r.correct?'result-v':'result-x'}">${r.correct?'✓':'✗'}</td><td class="count-change-v">${r.countChanged?'✓':''}</td>`;
-      tbody.appendChild(tr);
-    });
+
+async function doResetRecords() {
+  if (!confirm('Reset ALL quiz results? This cannot be undone.')) return;
+  try {
+    showToast('Resetting...');
+    await apiFetch('resetRecords');
+    session.day = 1; saveSession();
+    localStorage.removeItem('dq_lastQuizDate');
+    showToast('All records reset');
+    setTimeout(() => goHome(), 500);
+  } catch(e) {
+    showToast('Reset failed: ' + e.message);
   }
-  showScreen('report');
-}
-function showSummaryReport(label, records) {
-  document.getElementById('sum-type').textContent=''; 
-  document.getElementById('sum-type').textContent=label;
-  document.getElementById('sum-day').textContent='Day '+session.day;
-  const tbody=document.getElementById('sum-tbody'); tbody.innerHTML='';
-  if (!records.length) {
-    tbody.innerHTML='<tr class="no-data-row"><td colspan="6">No data for this period</td></tr>';
-  } else {
-    let correct=0,wrong=0,countPlus=0,testedCount=0; const uniqueDates=new Set();
-    records.forEach(quiz=>{
-      if(quiz.date) uniqueDates.add(quiz.date);
-      (quiz.results||[]).forEach(r=>{ if(r.correct) correct++; else wrong++; if(r.countChanged) countPlus++; testedCount++; });
-    });
-    const hitRate=testedCount>0?Math.round(correct/testedCount*100)+'%':'—';
-    const tr=document.createElement('tr');
-    tr.innerHTML=`<td>${uniqueDates.size}</td><td>${testedCount}/${vocabData.length}</td><td>${correct}</td><td>${wrong}</td><td>${hitRate}</td><td>${countPlus}</td>`;
-    tbody.appendChild(tr);
-  }
-  showScreen('summary');
 }
 
 // ══════════════════════════════════════════════════
 // UTILS
 // ══════════════════════════════════════════════════
-function todayStr() { return new Date().toISOString().slice(0,10); }
 function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 function showToast(msg) {
-  const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show');
-  setTimeout(()=>t.classList.remove('show'),2600);
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2800);
 }
 </script>
 </body>
