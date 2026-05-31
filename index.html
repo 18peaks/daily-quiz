@@ -795,7 +795,7 @@ async function startQuiz() {
     }
 
     if (!json.words || json.words.length === 0) {
-      showToast('No words available');
+      showToast('No words — total:' + json.total + ' untested:' + json.untested + ' allTested:' + json.allTested);
       goHome(); return;
     }
 
