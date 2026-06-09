@@ -215,6 +215,7 @@
   .result-x       { color: var(--red);   font-weight: 700; }
   .count-change-v { color: var(--amber); font-weight: 700; }
   .no-data-row td { text-align: center; padding: 1.5rem; color: var(--ink-muted); font-style: italic; }
+  .col-wide { min-width: 7rem; }
 
   /* ── MODAL ── */
   .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: flex; align-items: flex-end; justify-content: center; z-index: 100; }
@@ -270,7 +271,7 @@
     </div>
     <div class="header-btns">
       <button class="icon-btn" onclick="showConfig()">Config</button>
-      <button class="icon-btn" onclick="showReportModal()">Report</button>
+      <button class="icon-btn" onclick="showDailySummary()">Report</button>
     </div>
   </div>
   <div id="home-sync-bar" class="sync-bar idle">
@@ -343,7 +344,7 @@
     </div>
     <div class="header-btns">
       <button class="icon-btn" onclick="showConfig()">Config</button>
-      <button class="icon-btn" onclick="showReportModal()">Report</button>
+      <button class="icon-btn" onclick="showDailySummary()">Report</button>
     </div>
   </div>
   <div class="quiz-body">
@@ -437,7 +438,7 @@
   <div class="report-body">
     <div class="report-table-wrap">
       <table>
-        <thead><tr><th>POS</th><th>Chinese</th><th>English</th><th>Date</th><th>Count</th><th>Result</th><th>Count+</th></tr></thead>
+        <thead><tr><th>POS</th><th class="col-wide">Chinese</th><th class="col-wide">English</th><th>Date</th><th>Count</th><th>Result</th><th>Count+</th></tr></thead>
         <tbody id="rpt-tbody"></tbody>
       </table>
     </div>
@@ -445,17 +446,6 @@
   <div class="report-footer"><button class="btn-newtest" onclick="startQuiz()">▶ New Quiz</button></div>
 </div>
 
-<!-- ══ MODAL ══ -->
-<div id="modal-report" class="modal-overlay hidden">
-  <div class="modal-card">
-    <h3>View stats</h3>
-    <div class="modal-btn-list">
-      <button class="modal-btn" onclick="closeModal();goHome();">📊 Home screen stats</button>
-      <button class="modal-btn" onclick="closeModal();showDailySummary();">📋 Daily Summary</button>
-    </div>
-    <button class="btn-cancel" onclick="closeModal()">Cancel</button>
-  </div>
-</div>
 
 <div id="toast" class="toast"></div>
 
@@ -473,7 +463,9 @@ let cfg = {
 };
 let session = {
   day: 1, quizWords: [], currentIdx: 0,
-  results: [],          // [{english, chinese, pos, wasCorrect, wrong}]
+  results: [],          // [{english, chinese, pos, date, count, wasCorrect, wrong, countChanged}] — current round
+  dailyResults: [],     // all results accumulated today across all rounds
+  dailyDate: '',        // YYYY-MM-DD the dailyResults belong to
   elapsed: 0, markedCorrect: null,
   timerStart: null, timerInterval: null, timeoutTimer: null
 };
@@ -482,11 +474,11 @@ let availableTags = []; // populated from server
 
 function loadLocal() {
   try { const c = localStorage.getItem(LS_CONFIG);  if (c) cfg     = {...cfg, ...JSON.parse(c)}; } catch(e){}
-  try { const s = localStorage.getItem(LS_SESSION); if (s) { const v = JSON.parse(s); session.day = v.day||1; } } catch(e){}
+  try { const s = localStorage.getItem(LS_SESSION); if (s) { const v = JSON.parse(s); session.day = v.day||1; session.dailyResults = v.dailyResults||[]; session.dailyDate = v.dailyDate||''; } } catch(e){}
   try { const v = localStorage.getItem(LS_VOCAB);   if (v) vocabCache = JSON.parse(v); } catch(e){}
 }
 function saveCfg()     { localStorage.setItem(LS_CONFIG,  JSON.stringify(cfg)); }
-function saveSession() { localStorage.setItem(LS_SESSION, JSON.stringify({day: session.day})); }
+function saveSession() { localStorage.setItem(LS_SESSION, JSON.stringify({day: session.day, dailyResults: session.dailyResults, dailyDate: session.dailyDate})); }
 function saveVocabCache() { localStorage.setItem(LS_VOCAB, JSON.stringify(vocabCache)); }
 
 // ══════════════════════════════════════════════════
@@ -512,8 +504,9 @@ function showConfig() {
   document.getElementById('refetch-progress').classList.add('hidden');
   showScreen('config');
 }
-function showReportModal() { document.getElementById('modal-report').classList.remove('hidden'); }
-function closeModal()      { document.getElementById('modal-report').classList.add('hidden'); }
+function showDailySummary() {
+  showQuizReport();
+}
 
 // ══════════════════════════════════════════════════
 // API HELPERS
@@ -903,8 +896,14 @@ async function finishQuiz() {
     if (lastDay !== today) {
       session.day++;
       localStorage.setItem('dq_lastQuizDate', today);
-      saveSession();
     }
+    // Accumulate into dailyResults — reset if it's a new day
+    if (session.dailyDate !== today) {
+      session.dailyResults = [];
+      session.dailyDate    = today;
+    }
+    session.dailyResults = session.dailyResults.concat(session.results);
+    saveSession();
   } catch(e) {
     showToast('Warning: results may not have saved: ' + e.message);
   }
@@ -913,26 +912,27 @@ async function finishQuiz() {
 }
 
 function showQuizReport() {
-  const correct = session.results.filter(r => r.wasCorrect).length;
-  const total   = session.results.length;
+  const rows    = session.dailyResults.length ? session.dailyResults : session.results;
+  const correct = rows.filter(r => r.wasCorrect).length;
+  const total   = rows.length;
   document.getElementById('rpt-score').textContent = correct + '/' + total;
   document.getElementById('rpt-time').textContent  = fmtTime(session.elapsed);
 
   const tbody = document.getElementById('rpt-tbody');
   tbody.innerHTML = '';
-  session.results.forEach(r => {
-    const tr = document.createElement('tr');
-    tr.innerHTML = `<td>${esc(r.pos)}</td><td>${esc(r.chinese)}</td><td>${esc(r.english)}</td><td>${esc(r.date)}</td><td>${esc(String(r.count))}</td><td class="${r.wasCorrect?'result-v':'result-x'}">${r.wasCorrect?'✓':'✗'}</td><td class="count-change-v">${r.countChanged?'✓':''}</td>`;
-    tbody.appendChild(tr);
-  });
+  if (rows.length === 0) {
+    tbody.innerHTML = '<tr class="no-data-row"><td colspan="7">No quiz results yet today</td></tr>';
+  } else {
+    rows.forEach(r => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td>${esc(r.pos)}</td><td>${esc(r.chinese)}</td><td>${esc(r.english)}</td><td>${esc(r.date)}</td><td>${esc(String(r.count))}</td><td class="${r.wasCorrect?'result-v':'result-x'}">${r.wasCorrect?'✓':'✗'}</td><td class="count-change-v">${r.countChanged?'✓':''}</td>`;
+      tbody.appendChild(tr);
+    });
+  }
   showScreen('report');
 }
 
 function showDailySummary() {
-  if (!session.results || session.results.length === 0) {
-    showToast('No quiz results yet — complete a quiz first');
-    return;
-  }
   showQuizReport();
 }
 
