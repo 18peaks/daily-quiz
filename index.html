@@ -428,7 +428,7 @@
   <div class="app-header">
     <button class="btn-back" onclick="goHome()">← Home</button>
     <div class="header-meta">
-      <span class="header-logo">RESULT</span>
+      <span class="header-logo">DAILY SUMMARY</span>
       <span id="rpt-score" class="lime-pill">0/0</span>
       <span id="rpt-time" class="ink-pill">0:00</span>
     </div>
@@ -437,7 +437,7 @@
   <div class="report-body">
     <div class="report-table-wrap">
       <table>
-        <thead><tr><th>POS</th><th>Chinese</th><th>English</th><th>Result</th><th>Wrong</th></tr></thead>
+        <thead><tr><th>POS</th><th>Chinese</th><th>English</th><th>Date</th><th>Count</th><th>Result</th><th>Count+</th></tr></thead>
         <tbody id="rpt-tbody"></tbody>
       </table>
     </div>
@@ -451,6 +451,7 @@
     <h3>View stats</h3>
     <div class="modal-btn-list">
       <button class="modal-btn" onclick="closeModal();goHome();">📊 Home screen stats</button>
+      <button class="modal-btn" onclick="closeModal();showDailySummary();">📋 Daily Summary</button>
     </div>
     <button class="btn-cancel" onclick="closeModal()">Cancel</button>
   </div>
@@ -862,12 +863,16 @@ function markAnswer(correct) {
   document.getElementById('btn-next').classList.add('active');
 
   const w = session.quizWords[session.currentIdx];
+  const newWrong = (w.wrong || 0) + (correct ? 0 : 1);
   session.results.push({
-    english:   w.english,
-    chinese:   w.chinese,
-    pos:       w.pos,
-    wasCorrect: correct,
-    wrong:     w.wrong || 0
+    english:      w.english,
+    chinese:      w.chinese,
+    pos:          w.pos,
+    date:         w.date  || '',
+    count:        w.count != null ? w.count : 0,
+    wasCorrect:   correct,
+    wrong:        w.wrong || 0,
+    countChanged: !correct && (newWrong % 3 === 0) && newWrong > 0
   });
 
   // Last word — finish
@@ -917,10 +922,18 @@ function showQuizReport() {
   tbody.innerHTML = '';
   session.results.forEach(r => {
     const tr = document.createElement('tr');
-    tr.innerHTML = `<td>${esc(r.pos)}</td><td>${esc(r.chinese)}</td><td>${esc(r.english)}</td><td class="${r.wasCorrect?'result-v':'result-x'}">${r.wasCorrect?'✓':'✗'}</td><td>${esc(String(r.wrong||0))}</td>`;
+    tr.innerHTML = `<td>${esc(r.pos)}</td><td>${esc(r.chinese)}</td><td>${esc(r.english)}</td><td>${esc(r.date)}</td><td>${esc(String(r.count))}</td><td class="${r.wasCorrect?'result-v':'result-x'}">${r.wasCorrect?'✓':'✗'}</td><td class="count-change-v">${r.countChanged?'✓':''}</td>`;
     tbody.appendChild(tr);
   });
   showScreen('report');
+}
+
+function showDailySummary() {
+  if (!session.results || session.results.length === 0) {
+    showToast('No quiz results yet — complete a quiz first');
+    return;
+  }
+  showQuizReport();
 }
 
 function updateQuizHeader() {
