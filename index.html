@@ -204,6 +204,16 @@
   .report-footer, .summary-footer { padding: 0.85rem; display: flex; justify-content: flex-end; gap: 0.6rem; max-width: var(--max-w); width: 100%; margin: 0 auto; }
   .btn-newtest { padding: 0.7rem 1.3rem; background: var(--lime); color: var(--ink); border: 2px solid var(--ink); border-radius: var(--radius-sm); font-size: 0.88rem; font-weight: 800; font-family: var(--font-head); cursor: pointer; letter-spacing: 0.04em; transition: background 0.15s, box-shadow 0.15s; }
   .btn-newtest:hover { background: var(--lime-dark); box-shadow: 3px 3px 0 var(--ink); }
+  /* Daily Summary — scrollable wide table, no clipping */
+  .summary-body { flex: 1; width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; padding: 0.85rem; }
+  .summary-table-wrap { border-radius: var(--radius-md); border: 2px solid var(--ink); display: inline-block; min-width: 100%; }
+  .summary-table { width: max-content; min-width: 100%; border-collapse: collapse; background: var(--bg); font-size: 0.78rem; }
+  .summary-table thead tr { background: var(--ink); color: #fff; }
+  .summary-table thead th { padding: 0.55rem 0.75rem; text-align: left; font-weight: 700; font-size: 0.65rem; letter-spacing: 0.06em; white-space: nowrap; font-family: var(--font-head); }
+  .summary-table thead th.col-wide { min-width: 8rem; }
+  .summary-table tbody tr:nth-child(even) { background: var(--bg-off); }
+  .summary-table tbody tr:nth-child(odd)  { background: var(--bg); }
+  .summary-table tbody td { padding: 0.5rem 0.75rem; vertical-align: middle; border-bottom: 1px solid #f0f0f0; white-space: nowrap; }
 
   table { width: 100%; border-collapse: collapse; background: var(--bg); font-size: 0.78rem; }
   thead tr { background: var(--ink); color: #fff; }
@@ -215,7 +225,6 @@
   .result-x       { color: var(--red);   font-weight: 700; }
   .count-change-v { color: var(--amber); font-weight: 700; }
   .no-data-row td { text-align: center; padding: 1.5rem; color: var(--ink-muted); font-style: italic; }
-  .col-wide { min-width: 7rem; }
 
   /* ── MODAL ── */
   .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: flex; align-items: flex-end; justify-content: center; z-index: 100; }
@@ -424,12 +433,12 @@
   </div>
 </div>
 
-<!-- ══ QUIZ REPORT (after quiz done) ══ -->
+<!-- ══ QUIZ REPORT (current round only) ══ -->
 <div id="screen-report" class="screen">
   <div class="app-header">
     <button class="btn-back" onclick="goHome()">← Home</button>
     <div class="header-meta">
-      <span class="header-logo">DAILY SUMMARY</span>
+      <span class="header-logo">RESULT</span>
       <span id="rpt-score" class="lime-pill">0/0</span>
       <span id="rpt-time" class="ink-pill">0:00</span>
     </div>
@@ -438,7 +447,7 @@
   <div class="report-body">
     <div class="report-table-wrap">
       <table>
-        <thead><tr><th>POS</th><th class="col-wide">Chinese</th><th class="col-wide">English</th><th>Date</th><th>Count</th><th>Result</th><th>Count+</th></tr></thead>
+        <thead><tr><th>POS</th><th>Chinese</th><th>English</th><th>Result</th><th>Wrong</th></tr></thead>
         <tbody id="rpt-tbody"></tbody>
       </table>
     </div>
@@ -446,6 +455,26 @@
   <div class="report-footer"><button class="btn-newtest" onclick="startQuiz()">▶ New Quiz</button></div>
 </div>
 
+<!-- ══ DAILY SUMMARY (all words tested today, from server) ══ -->
+<div id="screen-summary" class="screen">
+  <div class="app-header">
+    <button class="btn-back" onclick="goHome()">← Home</button>
+    <div class="header-meta">
+      <span class="header-logo">DAILY SUMMARY</span>
+      <span id="sum-score" class="lime-pill">0/0</span>
+    </div>
+    <div style="width:48px"></div>
+  </div>
+  <div class="summary-body">
+    <div class="summary-table-wrap">
+      <table class="summary-table">
+        <thead><tr><th>POS</th><th class="col-wide">Chinese</th><th class="col-wide">English</th><th>Date</th><th>Count</th><th>Result</th><th>Count+</th></tr></thead>
+        <tbody id="sum-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+  <div class="summary-footer"><button class="btn-newtest" onclick="startQuiz()">▶ New Quiz</button></div>
+</div>
 
 <div id="toast" class="toast"></div>
 
@@ -463,9 +492,7 @@ let cfg = {
 };
 let session = {
   day: 1, quizWords: [], currentIdx: 0,
-  results: [],          // [{english, chinese, pos, date, count, wasCorrect, wrong, countChanged}] — current round
-  dailyResults: [],     // all results accumulated today across all rounds
-  dailyDate: '',        // YYYY-MM-DD the dailyResults belong to
+  results: [],          // [{english, chinese, pos, wasCorrect, wrong}]
   elapsed: 0, markedCorrect: null,
   timerStart: null, timerInterval: null, timeoutTimer: null
 };
@@ -474,11 +501,11 @@ let availableTags = []; // populated from server
 
 function loadLocal() {
   try { const c = localStorage.getItem(LS_CONFIG);  if (c) cfg     = {...cfg, ...JSON.parse(c)}; } catch(e){}
-  try { const s = localStorage.getItem(LS_SESSION); if (s) { const v = JSON.parse(s); session.day = v.day||1; session.dailyResults = v.dailyResults||[]; session.dailyDate = v.dailyDate||''; } } catch(e){}
+  try { const s = localStorage.getItem(LS_SESSION); if (s) { const v = JSON.parse(s); session.day = v.day||1; } } catch(e){}
   try { const v = localStorage.getItem(LS_VOCAB);   if (v) vocabCache = JSON.parse(v); } catch(e){}
 }
 function saveCfg()     { localStorage.setItem(LS_CONFIG,  JSON.stringify(cfg)); }
-function saveSession() { localStorage.setItem(LS_SESSION, JSON.stringify({day: session.day, dailyResults: session.dailyResults, dailyDate: session.dailyDate})); }
+function saveSession() { localStorage.setItem(LS_SESSION, JSON.stringify({day: session.day})); }
 function saveVocabCache() { localStorage.setItem(LS_VOCAB, JSON.stringify(vocabCache)); }
 
 // ══════════════════════════════════════════════════
@@ -504,8 +531,32 @@ function showConfig() {
   document.getElementById('refetch-progress').classList.add('hidden');
   showScreen('config');
 }
-function showDailySummary() {
-  showQuizReport();
+async function showDailySummary() {
+  showScreen('loading');
+  setLoadingMsg('Loading today\'s results...');
+  try {
+    const json = await apiFetch('dailySummary');
+    const rows = json.rows || [];
+    const correct = rows.filter(r => r.wasCorrect).length;
+    document.getElementById('sum-score').textContent = correct + '/' + rows.length;
+
+    const tbody = document.getElementById('sum-tbody');
+    tbody.innerHTML = '';
+    if (rows.length === 0) {
+      tbody.innerHTML = '<tr class="no-data-row"><td colspan="7">No words tested today yet</td></tr>';
+    } else {
+      rows.forEach(r => {
+        const countChanged = !r.wasCorrect && r.wrong > 0 && (r.wrong % 3 === 0);
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td>${esc(r.pos)}</td><td>${esc(r.chinese)}</td><td>${esc(r.english)}</td><td>${esc(r.date)}</td><td>${esc(String(r.count))}</td><td class="${r.wasCorrect?'result-v':'result-x'}">${r.wasCorrect?'✓':'✗'}</td><td class="count-change-v">${countChanged?'✓':''}</td>`;
+        tbody.appendChild(tr);
+      });
+    }
+    showScreen('summary');
+  } catch(e) {
+    showToast('Could not load summary: ' + e.message);
+    goHome();
+  }
 }
 
 // ══════════════════════════════════════════════════
@@ -856,16 +907,13 @@ function markAnswer(correct) {
   document.getElementById('btn-next').classList.add('active');
 
   const w = session.quizWords[session.currentIdx];
-  const newWrong = (w.wrong || 0) + (correct ? 0 : 1);
   session.results.push({
-    english:      w.english,
-    chinese:      w.chinese,
-    pos:          w.pos,
-    date:         w.date  || '',
-    count:        w.count != null ? w.count : 0,
-    wasCorrect:   correct,
-    wrong:        w.wrong || 0,
-    countChanged: !correct && (newWrong % 3 === 0) && newWrong > 0
+    rowNum:    w.rowNum,
+    english:   w.english,
+    chinese:   w.chinese,
+    pos:       w.pos,
+    wasCorrect: correct,
+    wrong:     w.wrong || 0
   });
 
   // Last word — finish
@@ -887,6 +935,7 @@ async function finishQuiz() {
   // Save results to cloud
   try {
     await apiSave('saveResults', session.results.map(r => ({
+      rowNum:     r.rowNum,
       english:    r.english,
       wasCorrect: r.wasCorrect
     })));
@@ -896,14 +945,8 @@ async function finishQuiz() {
     if (lastDay !== today) {
       session.day++;
       localStorage.setItem('dq_lastQuizDate', today);
+      saveSession();
     }
-    // Accumulate into dailyResults — reset if it's a new day
-    if (session.dailyDate !== today) {
-      session.dailyResults = [];
-      session.dailyDate    = today;
-    }
-    session.dailyResults = session.dailyResults.concat(session.results);
-    saveSession();
   } catch(e) {
     showToast('Warning: results may not have saved: ' + e.message);
   }
@@ -912,28 +955,19 @@ async function finishQuiz() {
 }
 
 function showQuizReport() {
-  const rows    = session.dailyResults.length ? session.dailyResults : session.results;
-  const correct = rows.filter(r => r.wasCorrect).length;
-  const total   = rows.length;
+  const correct = session.results.filter(r => r.wasCorrect).length;
+  const total   = session.results.length;
   document.getElementById('rpt-score').textContent = correct + '/' + total;
   document.getElementById('rpt-time').textContent  = fmtTime(session.elapsed);
 
   const tbody = document.getElementById('rpt-tbody');
   tbody.innerHTML = '';
-  if (rows.length === 0) {
-    tbody.innerHTML = '<tr class="no-data-row"><td colspan="7">No quiz results yet today</td></tr>';
-  } else {
-    rows.forEach(r => {
-      const tr = document.createElement('tr');
-      tr.innerHTML = `<td>${esc(r.pos)}</td><td>${esc(r.chinese)}</td><td>${esc(r.english)}</td><td>${esc(r.date)}</td><td>${esc(String(r.count))}</td><td class="${r.wasCorrect?'result-v':'result-x'}">${r.wasCorrect?'✓':'✗'}</td><td class="count-change-v">${r.countChanged?'✓':''}</td>`;
-      tbody.appendChild(tr);
-    });
-  }
+  session.results.forEach(r => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${esc(r.pos)}</td><td>${esc(r.chinese)}</td><td>${esc(r.english)}</td><td class="${r.wasCorrect?'result-v':'result-x'}">${r.wasCorrect?'✓':'✗'}</td><td>${esc(String(r.wrong||0))}</td>`;
+    tbody.appendChild(tr);
+  });
   showScreen('report');
-}
-
-function showDailySummary() {
-  showQuizReport();
 }
 
 function updateQuizHeader() {
