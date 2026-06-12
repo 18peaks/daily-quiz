@@ -204,7 +204,7 @@
   .report-footer, .summary-footer { padding: 0.85rem; display: flex; justify-content: flex-end; gap: 0.6rem; max-width: var(--max-w); width: 100%; margin: 0 auto; }
   .btn-newtest { padding: 0.7rem 1.3rem; background: var(--lime); color: var(--ink); border: 2px solid var(--ink); border-radius: var(--radius-sm); font-size: 0.88rem; font-weight: 800; font-family: var(--font-head); cursor: pointer; letter-spacing: 0.04em; transition: background 0.15s, box-shadow 0.15s; }
   .btn-newtest:hover { background: var(--lime-dark); box-shadow: 3px 3px 0 var(--ink); }
-  /* Daily Summary — scrollable wide table, no clipping */
+  /* Daily Summary — horizontally scrollable, no clipping */
   .summary-body { flex: 1; width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; padding: 0.85rem; }
   .summary-table-wrap { border-radius: var(--radius-md); border: 2px solid var(--ink); display: inline-block; min-width: 100%; }
   .summary-table { width: max-content; min-width: 100%; border-collapse: collapse; background: var(--bg); font-size: 0.78rem; }
@@ -455,7 +455,7 @@
   <div class="report-footer"><button class="btn-newtest" onclick="startQuiz()">▶ New Quiz</button></div>
 </div>
 
-<!-- ══ DAILY SUMMARY (all words tested today, from server) ══ -->
+<!-- ══ DAILY SUMMARY (all words tested today, fetched from server) ══ -->
 <div id="screen-summary" class="screen">
   <div class="app-header">
     <button class="btn-back" onclick="goHome()">← Home</button>
@@ -908,12 +908,12 @@ function markAnswer(correct) {
 
   const w = session.quizWords[session.currentIdx];
   session.results.push({
-    rowNum:    w.rowNum,
-    english:   w.english,
-    chinese:   w.chinese,
-    pos:       w.pos,
+    rowNum:     w.rowNum,
+    english:    w.english,
+    chinese:    w.chinese,
+    pos:        w.pos,
     wasCorrect: correct,
-    wrong:     w.wrong || 0
+    wrong:      w.wrong || 0
   });
 
   // Last word — finish
