@@ -1240,10 +1240,12 @@ function showExamplePopup(e, el) {
   // Position: below the cell, left-aligned with viewport guard
   const rect = el.getBoundingClientRect();
   const popW = 280;
-  let left = rect.left + window.scrollX;
-  let top  = rect.bottom + window.scrollY + 6;
+  let left = rect.left;
+  let top  = rect.bottom + 6;
   if (left + popW > window.innerWidth - 8) left = window.innerWidth - popW - 8;
   if (left < 8) left = 8;
+  // Flip above if too close to bottom
+  if (window.innerHeight - rect.bottom < 120) top = rect.top - 6 - popup.offsetHeight;
   popup.style.left = left + 'px';
   popup.style.top  = top  + 'px';
 }
