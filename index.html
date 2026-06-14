@@ -256,13 +256,12 @@
     -webkit-tap-highlight-color: transparent;
   }
   .similar-popup {
-    display: none; position: absolute; left: 50%; top: calc(100% + 6px);
-    transform: translateX(-50%);
+    display: none; position: fixed;
     background: #fff; border: 2px solid var(--ink);
     border-radius: var(--radius-md); padding: 0.65rem 0.8rem;
     box-shadow: 3px 3px 0 var(--ink);
     min-width: 180px; max-width: 260px;
-    z-index: 50; text-align: left;
+    z-index: 500; text-align: left;
     font-size: 0.8rem; font-family: var(--font-body); font-weight: 400; font-style: normal;
     color: var(--ink); white-space: normal;
     pointer-events: none;
@@ -1004,8 +1003,40 @@ function toggleSimilarPopup(e) {
   e.stopPropagation();
   const badge = document.getElementById('sim-badge');
   if (!badge) return;
+  const popup = badge.querySelector('.similar-popup');
+  const wasActive = badge.classList.contains('active');
   badge.classList.toggle('active');
+  if (!wasActive && popup) positionSimilarPopup(badge, popup);
 }
+
+// Position the fixed popup below (or above if near bottom) the badge
+function positionSimilarPopup(badge, popup) {
+  const rect   = badge.getBoundingClientRect();
+  const popW   = 260;
+  const margin = 8;
+  let left = rect.left + rect.width / 2 - popW / 2;
+  if (left + popW > window.innerWidth - margin) left = window.innerWidth - popW - margin;
+  if (left < margin) left = margin;
+  // Place below badge; if too close to bottom, place above
+  const spaceBelow = window.innerHeight - rect.bottom;
+  if (spaceBelow < 160) {
+    popup.style.top  = '';
+    popup.style.bottom = (window.innerHeight - rect.top + 6) + 'px';
+  } else {
+    popup.style.bottom = '';
+    popup.style.top  = (rect.bottom + 6) + 'px';
+  }
+  popup.style.left = left + 'px';
+}
+
+// On desktop hover, also position the popup correctly
+document.addEventListener('mouseover', function(e) {
+  const badge = e.target.closest('#sim-badge');
+  if (!badge) return;
+  const popup = badge.querySelector('.similar-popup');
+  if (popup) positionSimilarPopup(badge, popup);
+});
+
 // Dismiss similar popup when tapping elsewhere
 document.addEventListener('click', function() {
   const badge = document.getElementById('sim-badge');
