@@ -240,6 +240,61 @@
   /* ── TOAST ── */
   .toast { position: fixed; bottom: 1.2rem; left: 50%; transform: translateX(-50%); background: var(--ink); color: #fff; padding: 0.55rem 1rem; border-radius: 99px; font-size: 0.8rem; font-weight: 600; z-index: 200; opacity: 0; pointer-events: none; transition: opacity 0.3s; white-space: nowrap; max-width: 90vw; }
   .toast.show { opacity: 1; }
+
+  /* ── QUIZ LOGO LINK ── */
+  .header-logo-link { font-family: var(--font-head); font-weight: 800; font-size: 0.95rem; color: var(--ink); letter-spacing: -0.2px; white-space: nowrap; cursor: pointer; text-decoration: none; background: none; border: none; padding: 0; }
+  .header-logo-link:hover { text-decoration: underline; }
+
+  /* ── SIMILAR WORD BADGE & POPUP ── */
+  .similar-badge {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 18px; height: 18px; border-radius: 50%;
+    background: var(--amber); color: #fff;
+    font-size: 0.6rem; font-weight: 800; font-family: var(--font-head);
+    cursor: pointer; position: relative; vertical-align: middle;
+    margin-left: 0.4rem; flex-shrink: 0;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .similar-popup {
+    display: none; position: absolute; left: 50%; top: calc(100% + 6px);
+    transform: translateX(-50%);
+    background: #fff; border: 2px solid var(--ink);
+    border-radius: var(--radius-md); padding: 0.65rem 0.8rem;
+    box-shadow: 3px 3px 0 var(--ink);
+    min-width: 180px; max-width: 260px;
+    z-index: 50; text-align: left;
+    font-size: 0.8rem; font-family: var(--font-body); font-weight: 400; font-style: normal;
+    color: var(--ink); white-space: normal;
+    pointer-events: none;
+  }
+  .similar-badge:hover .similar-popup,
+  .similar-badge.active .similar-popup { display: block; }
+  .similar-popup-en { font-family: var(--font-head); font-size: 0.9rem; font-weight: 800; margin-bottom: 0.18rem; }
+  .similar-popup-zh { font-size: 1rem; font-weight: 600; color: var(--ink); margin-bottom: 0.18rem; }
+  .similar-popup-date { font-size: 0.7rem; color: var(--ink-muted); margin-bottom: 0.22rem; }
+  .similar-popup-ex { font-size: 0.75rem; color: var(--ink-muted); font-style: italic; line-height: 1.5; }
+
+  /* ── EXAMPLE POPUP (Daily Summary) ── */
+  .has-example {
+    font-weight: 700; color: #1864ab;
+    cursor: pointer; position: relative;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .has-example:hover { text-decoration: underline; }
+  .example-popup {
+    display: none; position: fixed;
+    background: #fff; border: 2px solid var(--ink);
+    border-radius: var(--radius-md); padding: 0.75rem 0.9rem;
+    box-shadow: 3px 3px 0 var(--ink);
+    max-width: min(280px, 90vw);
+    z-index: 300;
+    font-size: 0.82rem; font-family: var(--font-body);
+    font-weight: 400; color: var(--ink);
+    white-space: normal; line-height: 1.55;
+    font-style: italic;
+    pointer-events: none;
+  }
+  .example-popup.show { display: block; }
 </style>
 </head>
 <body>
@@ -344,7 +399,7 @@
 <div id="screen-main" class="screen">
   <div id="timeout-banner" class="timeout-banner hidden">⏱ Time's up — quiz not saved. Returning home...</div>
   <div class="app-header">
-    <span class="header-logo">DAILY QUIZ</span>
+    <button class="header-logo-link" onclick="interruptQuiz()" title="Return to home">DAILY QUIZ</button>
     <div class="header-meta">
       <span id="main-day" class="ink-pill">Day 1</span>
       <select id="quiz-tag-select" class="tag-select" onchange="onTagChange(this.value)">
@@ -476,6 +531,7 @@
   <div class="summary-footer"><button class="btn-newtest" onclick="startQuiz()">▶ New Quiz</button></div>
 </div>
 
+<div id="example-popup" class="example-popup"></div>
 <div id="toast" class="toast"></div>
 
 <script>
@@ -498,6 +554,10 @@ let session = {
 };
 let vocabCache = {};    // english → full word object (for display only)
 let availableTags = []; // populated from server
+let vocabByNo = {};     // "1"-based index → vocab row (for similar word lookup)
+
+// ── Stats cache (Change 2: avoid redundant server calls on internal navigation) ──
+let statsCache = null;  // null = not yet loaded; populated after first load
 
 function loadLocal() {
   try { const c = localStorage.getItem(LS_CONFIG);  if (c) cfg     = {...cfg, ...JSON.parse(c)}; } catch(e){}
@@ -515,13 +575,28 @@ function showScreen(id) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   document.getElementById('screen-' + id).classList.add('active');
 }
-function goHome() {
+
+// Change 1: Interrupt current quiz and return home without saving results
+function interruptQuiz() {
+  stopTimers();
+  goHome();
+}
+
+// Change 2: goHome uses statsCache when available (internal navigation = no server call)
+function goHome(forceReload) {
   stopTimers();
   populateTags();
-  loadStats();
   document.getElementById('home-day').textContent = 'Day ' + session.day;
   document.getElementById('main-day').textContent  = 'Day ' + session.day;
   showScreen('home');
+
+  if (!forceReload && statsCache) {
+    // Render from cache immediately — no server call needed
+    renderStats(statsCache);
+    setSyncBar('idle', '');
+  } else {
+    loadStats();
+  }
 }
 function showConfig() {
   document.getElementById('cfg-url').value       = cfg.sheetUrl;
@@ -548,7 +623,15 @@ async function showDailySummary() {
       rows.forEach(r => {
         const countChanged = !r.wasCorrect && r.wrong > 0 && (r.wrong % 3 === 0);
         const tr = document.createElement('tr');
-        tr.innerHTML = `<td>${esc(r.pos)}</td><td>${esc(r.chinese)}</td><td>${esc(r.english)}</td><td>${esc(r.date)}</td><td>${esc(String(r.count))}</td><td class="${r.wasCorrect?'result-v':'result-x'}">${r.wasCorrect?'✓':'✗'}</td><td class="count-change-v">${countChanged?'✓':''}</td>`;
+
+        // Change 4: English cell — bold blue + clickable if example exists
+        const engCell = r.example
+          ? `<td><span class="has-example" data-example="${esc(r.example)}" onclick="showExamplePopup(event, this)">${esc(r.english)}</span></td>`
+          : `<td>${esc(r.english)}</td>`;
+
+        // Chinese cell — red if wrong (also from this session's red-chinese feature)
+        const zhClass = r.wasCorrect ? '' : ' class="result-x"';
+        tr.innerHTML = `<td>${esc(r.pos)}</td><td${zhClass}>${esc(r.chinese)}</td>${engCell}<td>${esc(r.date)}</td><td>${esc(String(r.count))}</td><td class="${r.wasCorrect?'result-v':'result-x'}">${r.wasCorrect?'✓':'✗'}</td><td class="count-change-v">${countChanged?'✓':''}</td>`;
         tbody.appendChild(tr);
       });
     }
@@ -651,7 +734,7 @@ async function bootstrap() {
     }
   } catch(e) { /* proceed to home */ }
 
-  goHome();
+  goHome(true); // Change 2: browser refresh always reloads stats from server
 }
 
 bootstrap();
@@ -687,6 +770,7 @@ async function loadStats() {
   try {
     const json = await apiFetch('stats', { tag: cfg.activeTag });
     if (json.tags) { availableTags = json.tags; populateTags(); }
+    statsCache = json.stats; // Change 2: cache for internal navigation
     renderStats(json.stats);
     setSyncBar('synced', '✓ Updated ' + new Date().toLocaleTimeString());
   } catch(e) {
@@ -765,6 +849,7 @@ function onTagChange(tag) {
     const sel = document.getElementById(id);
     if (sel) { sel.value = tag; sel.classList.toggle('active-tag', tag !== 'all'); }
   });
+  statsCache = null; // Invalidate cache — tag scope changed
   loadStats();
 }
 
@@ -853,9 +938,10 @@ async function startQuiz() {
       goHome(); return;
     }
 
-    // Cache vocab for display
+    // Cache vocab for display, and store vocabByNo for similar-word lookup
     json.words.forEach(w => { if (w.english) vocabCache[w.english] = w; });
     saveVocabCache();
+    if (json.vocabByNo) vocabByNo = json.vocabByNo;
 
     session.quizWords   = json.words;
     session.currentIdx  = 0;
@@ -884,7 +970,27 @@ function renderWord() {
   document.getElementById('q-pos').textContent     = w.pos||'—';
   document.getElementById('q-date').textContent    = w.date||'—';
   document.getElementById('q-count').textContent   = '×' + (w.wrong||0);
-  document.getElementById('q-english').textContent = cn ? (w.english||'—') : (w.chinese||'—');
+
+  // Answer line: English text + optional "S" similar-word badge
+  const answerEl = document.getElementById('q-english');
+  const answerText = cn ? (w.english||'—') : (w.chinese||'—');
+  if (w.similar && vocabByNo[w.similar]) {
+    const sim = vocabByNo[w.similar];
+    const exSnippet = sim.example ? `<div class="similar-popup-ex">${esc(sim.example)}</div>` : '';
+    answerEl.innerHTML =
+      esc(answerText) +
+      `<span class="similar-badge" id="sim-badge" onclick="toggleSimilarPopup(event)">S` +
+        `<span class="similar-popup">` +
+          `<div class="similar-popup-en">${esc(sim.english||'')}</div>` +
+          `<div class="similar-popup-zh">${esc(sim.chinese||'')}</div>` +
+          `<div class="similar-popup-date">${esc(sim.date||'')}</div>` +
+          exSnippet +
+        `</span>` +
+      `</span>`;
+  } else {
+    answerEl.textContent = answerText;
+  }
+
   document.getElementById('q-example').textContent = w.example||'';
 
   document.getElementById('answer-area').classList.add('hidden');
@@ -892,6 +998,19 @@ function renderWord() {
   document.getElementById('vx-row').classList.add('hidden');
   document.getElementById('btn-next').classList.add('hidden');
 }
+
+// Toggle similar badge popup on touch devices (tap = toggle active class)
+function toggleSimilarPopup(e) {
+  e.stopPropagation();
+  const badge = document.getElementById('sim-badge');
+  if (!badge) return;
+  badge.classList.toggle('active');
+}
+// Dismiss similar popup when tapping elsewhere
+document.addEventListener('click', function() {
+  const badge = document.getElementById('sim-badge');
+  if (badge) badge.classList.remove('active');
+});
 
 function revealAnswer() {
   document.getElementById('answer-area').classList.remove('hidden');
@@ -951,6 +1070,7 @@ async function finishQuiz() {
     showToast('Warning: results may not have saved: ' + e.message);
   }
 
+  statsCache = null; // Change 2: invalidate so home shows fresh stats after quiz
   showQuizReport();
 }
 
@@ -1068,6 +1188,40 @@ function showToast(msg) {
   t.textContent = msg; t.classList.add('show');
   setTimeout(() => t.classList.remove('show'), 2800);
 }
+
+// ── Change 4: Example popup for Daily Summary ──
+function showExamplePopup(e, el) {
+  e.stopPropagation();
+  const popup = document.getElementById('example-popup');
+  const text  = el.getAttribute('data-example') || '';
+
+  // If already showing for this element, dismiss
+  if (popup.classList.contains('show') && popup._anchor === el) {
+    popup.classList.remove('show');
+    popup._anchor = null;
+    return;
+  }
+
+  popup.textContent = text;
+  popup._anchor = el;
+  popup.classList.add('show');
+
+  // Position: below the cell, left-aligned with viewport guard
+  const rect = el.getBoundingClientRect();
+  const popW = 280;
+  let left = rect.left + window.scrollX;
+  let top  = rect.bottom + window.scrollY + 6;
+  if (left + popW > window.innerWidth - 8) left = window.innerWidth - popW - 8;
+  if (left < 8) left = 8;
+  popup.style.left = left + 'px';
+  popup.style.top  = top  + 'px';
+}
+
+// Dismiss example popup when clicking/tapping elsewhere
+document.addEventListener('click', function() {
+  const popup = document.getElementById('example-popup');
+  if (popup) { popup.classList.remove('show'); popup._anchor = null; }
+});
 </script>
 </body>
 </html>
