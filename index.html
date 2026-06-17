@@ -164,12 +164,16 @@
   .btn-answer:hover { background: #333; }
 
   .vx-row { display: grid; grid-template-columns: 1fr 1fr; gap: 0.55rem; }
-  .btn-correct { padding: 0.85rem; border-radius: var(--radius-md); background: var(--green-bg); color: var(--green); font-size: 1.3rem; font-weight: 800; cursor: pointer; border: 2px solid var(--green); transition: background 0.15s, transform 0.1s; }
+  .btn-correct { padding: 0.85rem; border-radius: var(--radius-md); background: var(--green-bg); color: var(--green); font-size: 1.3rem; font-weight: 800; cursor: pointer; border: 2px solid var(--green); transition: background 0.15s, transform 0.1s, opacity 0.15s; }
   .btn-correct:hover  { background: var(--green); color: #fff; }
   .btn-correct:active { transform: scale(0.97); }
-  .btn-wrong { padding: 0.85rem; border-radius: var(--radius-md); background: var(--red-bg); color: var(--red); font-size: 1.3rem; font-weight: 800; cursor: pointer; border: 2px solid var(--red); transition: background 0.15s, transform 0.1s; }
+  .btn-correct.marked { background: var(--green); color: #fff; }
+  .btn-correct.dimmed { opacity: 0.3; cursor: not-allowed; pointer-events: none; }
+  .btn-wrong { padding: 0.85rem; border-radius: var(--radius-md); background: var(--red-bg); color: var(--red); font-size: 1.3rem; font-weight: 800; cursor: pointer; border: 2px solid var(--red); transition: background 0.15s, transform 0.1s, opacity 0.15s; }
   .btn-wrong:hover  { background: var(--red); color: #fff; }
   .btn-wrong:active { transform: scale(0.97); }
+  .btn-wrong.marked { background: var(--red); color: #fff; }
+  .btn-wrong.dimmed { opacity: 0.3; cursor: not-allowed; pointer-events: none; }
 
   .btn-next { width: 100%; padding: 0.82rem; background: var(--bg-off); color: var(--ink-faint); border: 2px solid var(--border-soft); border-radius: var(--radius-md); font-size: 0.9rem; font-weight: 800; font-family: var(--font-head); cursor: not-allowed; pointer-events: none; letter-spacing: 0.04em; transition: all 0.2s; }
   .btn-next.active { background: var(--lime); color: var(--ink); border-color: var(--ink); cursor: pointer; pointer-events: auto; box-shadow: 3px 3px 0 var(--ink); }
@@ -234,6 +238,11 @@
   .modal-btn-list { display: flex; flex-direction: column; gap: 0.45rem; }
   .modal-btn { padding: 0.7rem 1rem; border: 2px solid var(--border-soft); border-radius: var(--radius-sm); background: var(--bg-off); color: var(--ink); font-size: 0.88rem; font-weight: 600; font-family: var(--font-body); cursor: pointer; text-align: left; transition: border-color 0.15s, background 0.15s; }
   .modal-btn:hover { border-color: var(--ink); background: var(--lime); }
+  .modal-range-row { display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap; }
+  .modal-range-row .modal-btn { flex: 0 0 auto; }
+  .modal-date-input { flex: 1; min-width: 0; padding: 0.55rem 0.6rem; border: 2px solid var(--border-soft); border-radius: var(--radius-sm); font-size: 0.85rem; font-family: var(--font-body); background: var(--bg-off); color: var(--ink); cursor: pointer; }
+  .modal-date-input:focus { outline: none; border-color: var(--ink); }
+  .modal-range-sep { font-size: 0.82rem; color: var(--ink-muted); flex-shrink: 0; }
   .btn-cancel { margin-top: 0.65rem; width: 100%; padding: 0.62rem; border: 2px solid var(--border-soft); border-radius: var(--radius-sm); background: transparent; color: var(--ink-muted); font-size: 0.85rem; font-family: var(--font-body); cursor: pointer; font-weight: 600; }
   .btn-cancel:hover { border-color: var(--ink); color: var(--ink); }
 
@@ -334,7 +343,7 @@
     </div>
     <div class="header-btns">
       <button class="icon-btn" onclick="showConfig()">Config</button>
-      <button class="icon-btn" onclick="showDailySummary()">Report</button>
+      <button class="icon-btn" onclick="showReportModal()">Report</button>
     </div>
   </div>
   <div id="home-sync-bar" class="sync-bar idle">
@@ -407,7 +416,7 @@
     </div>
     <div class="header-btns">
       <button class="icon-btn" onclick="showConfig()">Config</button>
-      <button class="icon-btn" onclick="showDailySummary()">Report</button>
+      <button class="icon-btn" onclick="showReportModal()">Report</button>
     </div>
   </div>
   <div class="quiz-body">
@@ -514,7 +523,7 @@
   <div class="app-header">
     <button class="btn-back" onclick="goHome()">← Home</button>
     <div class="header-meta">
-      <span class="header-logo">DAILY SUMMARY</span>
+      <span id="sum-title" class="header-logo">DAILY SUMMARY</span>
       <span id="sum-score" class="lime-pill">0/0</span>
     </div>
     <div style="width:48px"></div>
@@ -530,6 +539,23 @@
   <div class="summary-footer"><button class="btn-newtest" onclick="startQuiz()">▶ New Quiz</button></div>
 </div>
 
+<!-- ══ REPORT MODAL ══ -->
+<div id="modal-report" class="modal-overlay hidden">
+  <div class="modal-card">
+    <h3>Choose Report</h3>
+    <div class="modal-btn-list">
+      <button class="modal-btn" onclick="openReport('daily')">📅 Daily Summary</button>
+      <button class="modal-btn" onclick="openReport('weekly')">🗓 Weekly Summary</button>
+      <div class="modal-range-row">
+        <button class="modal-btn" onclick="openReport('range')">📆 From</button>
+        <input type="date" id="range-from" class="modal-date-input">
+        <span class="modal-range-sep">to</span>
+        <input type="date" id="range-to" class="modal-date-input">
+      </div>
+    </div>
+    <button class="btn-cancel" onclick="closeReportModal()">Cancel</button>
+  </div>
+</div>
 <div id="example-popup" class="example-popup"></div>
 <div id="toast" class="toast"></div>
 
@@ -605,41 +631,105 @@ function showConfig() {
   document.getElementById('refetch-progress').classList.add('hidden');
   showScreen('config');
 }
+// ══════════════════════════════════════════════════
+// REPORT MODAL
+// ══════════════════════════════════════════════════
+function showReportModal() {
+  // Pre-fill date range with sensible defaults (today)
+  const today = new Date().toISOString().slice(0, 10);
+  const fromEl = document.getElementById('range-from');
+  const toEl   = document.getElementById('range-to');
+  if (!fromEl.value) fromEl.value = today;
+  if (!toEl.value)   toEl.value   = today;
+  document.getElementById('modal-report').classList.remove('hidden');
+}
+function closeReportModal() {
+  document.getElementById('modal-report').classList.add('hidden');
+}
+function openReport(type) {
+  closeReportModal();
+  if (type === 'daily') {
+    showDailySummary();
+  } else if (type === 'weekly') {
+    showWeeklySummary();
+  } else if (type === 'range') {
+    const from = document.getElementById('range-from').value;
+    const to   = document.getElementById('range-to').value;
+    if (!from || !to) { showToast('Please select both From and To dates'); showReportModal(); return; }
+    if (from > to)    { showToast('From date must be before To date');     showReportModal(); return; }
+    showRangeSummary(from, to);
+  }
+}
+
+// Shared summary renderer — renders rows into screen-summary
+function renderSummaryRows(rows, title) {
+  const correct = rows.filter(r => r.wasCorrect).length;
+  document.getElementById('sum-title').textContent  = title;
+  document.getElementById('sum-score').textContent  = correct + '/' + rows.length;
+  const tbody = document.getElementById('sum-tbody');
+  tbody.innerHTML = '';
+  if (rows.length === 0) {
+    tbody.innerHTML = '<tr class="no-data-row"><td colspan="7">No words tested in this period</td></tr>';
+  } else {
+    rows.forEach(r => {
+      const countChanged = !r.wasCorrect && r.wrong > 0 && (r.wrong % 3 === 0);
+      const tr = document.createElement('tr');
+      const engCell = r.example
+        ? `<td><span class="has-example" data-example="${esc(r.example)}" onclick="showExamplePopup(event, this)">${esc(r.english)}</span></td>`
+        : `<td>${esc(r.english)}</td>`;
+      const zhClass = r.wasCorrect ? '' : ' class="result-x"';
+      tr.innerHTML = `<td>${esc(r.pos)}</td><td${zhClass}>${esc(r.chinese)}</td>${engCell}<td>${esc(r.date)}</td><td>${esc(String(r.count))}</td><td class="${r.wasCorrect?'result-v':'result-x'}">${r.wasCorrect?'✓':'✗'}</td><td class="count-change-v">${countChanged?'✓':''}</td>`;
+      tbody.appendChild(tr);
+    });
+  }
+  showScreen('summary');
+}
+
 async function showDailySummary() {
   showScreen('loading');
   setLoadingMsg('Loading today\'s results...');
   try {
     const json = await apiFetch('dailySummary');
-    const rows = json.rows || [];
-    const correct = rows.filter(r => r.wasCorrect).length;
-    document.getElementById('sum-score').textContent = correct + '/' + rows.length;
-
-    const tbody = document.getElementById('sum-tbody');
-    tbody.innerHTML = '';
-    if (rows.length === 0) {
-      tbody.innerHTML = '<tr class="no-data-row"><td colspan="7">No words tested today yet</td></tr>';
-    } else {
-      rows.forEach(r => {
-        const countChanged = !r.wasCorrect && r.wrong > 0 && (r.wrong % 3 === 0);
-        const tr = document.createElement('tr');
-
-        // Change 4: English cell — bold blue + clickable if example exists
-        const engCell = r.example
-          ? `<td><span class="has-example" data-example="${esc(r.example)}" onclick="showExamplePopup(event, this)">${esc(r.english)}</span></td>`
-          : `<td>${esc(r.english)}</td>`;
-
-        // Chinese cell — red if wrong (also from this session's red-chinese feature)
-        const zhClass = r.wasCorrect ? '' : ' class="result-x"';
-        tr.innerHTML = `<td>${esc(r.pos)}</td><td${zhClass}>${esc(r.chinese)}</td>${engCell}<td>${esc(r.date)}</td><td>${esc(String(r.count))}</td><td class="${r.wasCorrect?'result-v':'result-x'}">${r.wasCorrect?'✓':'✗'}</td><td class="count-change-v">${countChanged?'✓':''}</td>`;
-        tbody.appendChild(tr);
-      });
-    }
-    showScreen('summary');
+    renderSummaryRows(json.rows || [], 'DAILY SUMMARY');
   } catch(e) {
     showToast('Could not load summary: ' + e.message);
     goHome();
   }
 }
+
+async function showWeeklySummary() {
+  showScreen('loading');
+  setLoadingMsg('Loading this week\'s results...');
+  try {
+    // Monday of current week
+    const now = new Date();
+    const day = now.getDay(); // 0=Sun
+    const diffToMon = (day === 0) ? -6 : 1 - day;
+    const monday = new Date(now);
+    monday.setDate(now.getDate() + diffToMon);
+    const fromDate = monday.toISOString().slice(0, 10);
+    const toDate   = now.toISOString().slice(0, 10);
+    const json = await apiFetch('rangeSummary', { from: fromDate, to: toDate });
+    renderSummaryRows(json.rows || [], 'WEEKLY SUMMARY');
+  } catch(e) {
+    showToast('Could not load weekly summary: ' + e.message);
+    goHome();
+  }
+}
+
+async function showRangeSummary(from, to) {
+  showScreen('loading');
+  setLoadingMsg('Loading results...');
+  try {
+    const json = await apiFetch('rangeSummary', { from, to });
+    const label = from === to ? from : from + ' → ' + to;
+    renderSummaryRows(json.rows || [], label);
+  } catch(e) {
+    showToast('Could not load range summary: ' + e.message);
+    goHome();
+  }
+}
+
 
 // ══════════════════════════════════════════════════
 // API HELPERS
@@ -1047,6 +1137,11 @@ function revealAnswer() {
   document.getElementById('answer-area').classList.remove('hidden');
   document.getElementById('btn-answer').classList.add('hidden');
   document.getElementById('vx-row').classList.remove('hidden');
+  // Reset V/X button states
+  const btnCorrect = document.querySelector('.btn-correct');
+  const btnWrong   = document.querySelector('.btn-wrong');
+  btnCorrect.classList.remove('marked','dimmed'); btnCorrect.style.pointerEvents = '';
+  btnWrong.classList.remove('marked','dimmed');   btnWrong.style.pointerEvents   = '';
   const n = document.getElementById('btn-next');
   n.classList.remove('hidden'); n.classList.remove('active');
 }
@@ -1055,6 +1150,20 @@ function markAnswer(correct) {
   if (session.markedCorrect !== null) return;
   session.markedCorrect = correct;
   document.getElementById('btn-next').classList.add('active');
+
+  // Lock V/X buttons: highlight chosen, dim the other
+  const btnCorrect = document.querySelector('.btn-correct');
+  const btnWrong   = document.querySelector('.btn-wrong');
+  if (correct) {
+    btnCorrect.classList.add('marked');
+    btnWrong.classList.add('dimmed');
+  } else {
+    btnWrong.classList.add('marked');
+    btnCorrect.classList.add('dimmed');
+  }
+  // Make both non-clickable
+  btnCorrect.style.pointerEvents = 'none';
+  btnWrong.style.pointerEvents   = 'none';
 
   const w = session.quizWords[session.currentIdx];
   session.results.push({
