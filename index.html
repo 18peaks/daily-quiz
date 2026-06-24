@@ -707,8 +707,8 @@ async function showWeeklySummary() {
     const diffToMon = (day === 0) ? -6 : 1 - day;
     const monday = new Date(now);
     monday.setDate(now.getDate() + diffToMon);
-    const fromDate = monday.toISOString().slice(0, 10);
-    const toDate   = now.toISOString().slice(0, 10);
+    const fromDate = monday.getFullYear() + '-' + String(monday.getMonth() + 1).padStart(2, '0') + '-' + String(monday.getDate()).padStart(2, '0');
+    const toDate = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0');
     const json = await apiFetch('rangeSummary', { from: fromDate, to: toDate });
     renderSummaryRows(json.rows || [], 'WEEKLY SUMMARY');
   } catch(e) {
