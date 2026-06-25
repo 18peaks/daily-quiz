@@ -303,6 +303,31 @@
     pointer-events: none;
   }
   .example-popup.show { display: block; }
+
+  /* ── SOUND BUTTON ── */
+  .sound-btn {
+    padding: 0.28rem 0.6rem; border: 1.5px solid var(--ink-faint);
+    border-radius: var(--radius-sm); background: var(--bg);
+    font-size: 0.78rem; cursor: pointer; color: var(--ink-muted);
+    white-space: nowrap; transition: border-color 0.15s, color 0.15s;
+    line-height: 1; display: flex; align-items: center;
+  }
+  .sound-btn:hover { border-color: var(--ink); color: var(--ink); }
+  .sound-btn.sound-off { color: var(--ink-faint); border-color: transparent; }
+  .sound-btn.sound-off:hover { border-color: var(--ink-faint); color: var(--ink-muted); }
+
+  /* ── CONFIG SOUND SECTION ── */
+  .sound-item { display: flex; flex-direction: column; gap: 0.22rem; padding: 0.5rem 0; border-bottom: 1px solid var(--border-soft); }
+  .sound-item:last-child { border-bottom: none; }
+  .sound-cat-label { font-size: 0.68rem; font-weight: 700; color: var(--ink-muted); text-transform: uppercase; letter-spacing: 0.06em; }
+  .sound-pending { font-size: 0.68rem; color: var(--amber); font-style: italic; margin-left: 0.25rem; }
+  .sound-row { display: flex; align-items: center; gap: 0.4rem; }
+  .sound-desc { flex: 1; font-size: 0.8rem; color: var(--ink); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .sound-file-label { font-size: 0.7rem; color: var(--ink-muted); font-style: italic; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 110px; display: inline-block; flex-shrink: 0; }
+  .btn-snd { padding: 0.26rem 0.5rem; border: 1.5px solid var(--border-soft); border-radius: var(--radius-sm); background: var(--bg-off); font-size: 0.7rem; font-weight: 700; font-family: var(--font-body); cursor: pointer; color: var(--ink-muted); white-space: nowrap; flex-shrink: 0; transition: border-color 0.15s, color 0.15s; }
+  .btn-snd:hover { border-color: var(--ink); color: var(--ink); }
+  .btn-snd.danger { color: var(--red); border-color: var(--red); }
+  .btn-snd.danger:hover { background: var(--red); color: #fff; }
 </style>
 </head>
 <body>
@@ -342,6 +367,7 @@
       </select>
     </div>
     <div class="header-btns">
+      <button id="home-sound-btn" class="sound-btn" onclick="toggleSoundMute()" title="Toggle sound"></button>
       <button class="icon-btn" onclick="showConfig()">Config</button>
       <button class="icon-btn" onclick="showReportModal()">Report</button>
     </div>
@@ -415,6 +441,7 @@
       </select>
     </div>
     <div class="header-btns">
+      <button id="quiz-sound-btn" class="sound-btn" onclick="toggleSoundMute()" title="Toggle sound"></button>
       <button class="icon-btn" onclick="showConfig()">Config</button>
       <button class="icon-btn" onclick="showReportModal()">Report</button>
     </div>
@@ -491,6 +518,10 @@
     </div>
     <div class="config-section-title">Data Management</div>
     <button class="btn-danger" onclick="doResetRecords()">⚠ Reset all records</button>
+    <div class="config-section-title">Sound Effects</div>
+    <div id="sound-config-items">
+      <!-- populated by renderSoundConfigUI() -->
+    </div>
     <hr class="config-divider">
     <button class="btn-save" id="btn-save-config">Save Config</button>
   </div>
@@ -1364,6 +1395,300 @@ document.addEventListener('click', function() {
   const popup = document.getElementById('example-popup');
   if (popup) { popup.classList.remove('show'); popup._anchor = null; }
 });
+
+// ══════════════════════════════════════════════════
+// SOUND SYSTEM
+// ══════════════════════════════════════════════════
+const LS_SOUND_MUTE  = 'dq_sound_muted';
+const LS_SOUND_CACHE = 'dq_sound_cache'; // localStorage fallback: { id: {fileName, dataUrl} }
+
+// Sound category definitions
+const SOUND_DEFS = [
+  { id: 'system',  label: 'System click',    desc: 'Config, Report, Back, and other UI buttons' },
+  { id: 'start',   label: 'Start / New Quiz', desc: 'Start Quiz & New Quiz buttons' },
+  { id: 'correct', label: '✓ Correct',        desc: 'V button in Quiz' },
+  { id: 'wrong',   label: '✗ Wrong',          desc: 'X button in Quiz' },
+  { id: 'next',    label: 'Next →',           desc: 'Next button in Quiz' },
+  { id: 'finish',  label: 'Quiz Finish',      desc: 'Played before showing final result' },
+];
+
+let soundMuted  = localStorage.getItem(LS_SOUND_MUTE) === 'true';
+// activeSounds: what is currently live and decoded — loaded from server (or LS cache)
+let activeSounds = {};   // id → { fileName, dataUrl }
+// pendingSounds: staged in-config changes, NOT applied until Save Config
+let pendingSounds = {};  // id → { fileName, dataUrl } | null (null = delete)
+
+let audioCtx     = null;
+let audioBuffers = {};   // id → AudioBuffer (decoded, ready to play)
+
+function getAudioCtx() {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  return audioCtx;
+}
+
+// ── Decode & cache one sound ──
+async function decodeSound(id, dataUrl) {
+  if (!dataUrl) { delete audioBuffers[id]; return; }
+  try {
+    const ctx    = getAudioCtx();
+    const b64    = dataUrl.split(',')[1];
+    const binary = atob(b64);
+    const bytes  = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    audioBuffers[id] = await ctx.decodeAudioData(bytes.buffer);
+  } catch(e) {
+    console.warn('Sound decode failed for', id, e);
+    delete audioBuffers[id];
+  }
+}
+
+async function decodeAllActive() {
+  for (const [id, s] of Object.entries(activeSounds)) {
+    await decodeSound(id, s.dataUrl);
+  }
+}
+
+// ── Play ──
+function playSound(id) {
+  if (soundMuted) return;
+  const buf = audioBuffers[id];
+  if (!buf) return;
+  try {
+    const ctx = getAudioCtx();
+    if (ctx.state === 'suspended') ctx.resume();
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+    src.connect(ctx.destination);
+    src.start(0);
+  } catch(e) {}
+}
+
+// ── Mute toggle ──
+function toggleSoundMute() {
+  soundMuted = !soundMuted;
+  localStorage.setItem(LS_SOUND_MUTE, soundMuted);
+  updateSoundBtns();
+  if (!soundMuted) playSound('system');
+}
+
+function updateSoundBtns() {
+  const icon = soundMuted ? '🔇' : '🔊';
+  ['home-sound-btn', 'quiz-sound-btn'].forEach(id => {
+    const btn = document.getElementById(id);
+    if (!btn) return;
+    btn.textContent = icon;
+    btn.classList.toggle('sound-off', soundMuted);
+    btn.title = soundMuted ? 'Sound off — click to enable' : 'Sound on — click to mute';
+  });
+}
+
+// ── Fetch sounds from server → decode → cache in LS ──
+async function loadSoundsFromServer() {
+  if (!cfg.sheetUrl) return;
+  try {
+    const json = await apiFetch('getSounds');
+    if (json.sounds) {
+      activeSounds = json.sounds; // { id: { fileName, dataUrl } }
+      // Save to LS as offline cache
+      try { localStorage.setItem(LS_SOUND_CACHE, JSON.stringify(activeSounds)); } catch(e) {}
+      await decodeAllActive();
+    }
+  } catch(e) {
+    // Server unreachable — try LS cache
+    loadSoundsFromCache();
+  }
+}
+
+function loadSoundsFromCache() {
+  try {
+    const c = localStorage.getItem(LS_SOUND_CACHE);
+    if (c) activeSounds = JSON.parse(c);
+    decodeAllActive();
+  } catch(e) {}
+}
+
+// ── Config UI ──
+function renderSoundConfigUI() {
+  const container = document.getElementById('sound-config-items');
+  if (!container) return;
+  container.innerHTML = '';
+
+  SOUND_DEFS.forEach(def => {
+    const active  = activeSounds[def.id];   // { fileName, dataUrl } | undefined
+    const pending = pendingSounds[def.id];  // { fileName, dataUrl } | null | undefined
+    const hasPending = pending !== undefined;
+
+    // What to display as filename
+    let fileLabel;
+    if (hasPending) {
+      fileLabel = pending ? pending.fileName : '(removed)';
+    } else {
+      fileLabel = active ? active.fileName : 'none';
+    }
+
+    const pendingTag = hasPending ? '<span class="sound-pending">● unsaved</span>' : '';
+
+    // Show preview & clear only when there's an actual sound (pending or active)
+    const hasSound = hasPending ? !!pending : !!active;
+    const previewBtn = hasSound
+      ? `<button class="btn-snd" onclick="previewSound('${def.id}')" title="Preview">▶</button>` : '';
+    const clearBtn = hasSound
+      ? `<button class="btn-snd danger" onclick="clearPendingSound('${def.id}')" title="Remove">✕</button>` : '';
+
+    const item = document.createElement('div');
+    item.className = 'sound-item';
+    item.innerHTML = `
+      <div class="sound-cat-label">${esc(def.label)}${pendingTag}</div>
+      <div class="sound-row">
+        <span class="sound-desc">${esc(def.desc)}</span>
+        <span class="sound-file-label" title="${esc(fileLabel)}">${esc(fileLabel)}</span>
+        ${previewBtn}${clearBtn}
+        <button class="btn-snd" onclick="triggerSoundUpload('${def.id}')">Upload</button>
+      </div>`;
+    container.appendChild(item);
+
+    // Hidden file input
+    const inp = document.createElement('input');
+    inp.type = 'file'; inp.accept = 'audio/*';
+    inp.id = 'sfin-' + def.id; inp.style.display = 'none';
+    inp.addEventListener('change', () => handleSoundUpload(def.id, inp));
+    container.appendChild(inp);
+  });
+}
+
+function triggerSoundUpload(id) {
+  document.getElementById('sfin-' + id)?.click();
+}
+
+function handleSoundUpload(id, input) {
+  const file = input.files[0];
+  if (!file) return;
+  if (file.size > 100 * 1024) { showToast('File too large — max 100 KB'); input.value = ''; return; }
+  const reader = new FileReader();
+  reader.onload = e => {
+    pendingSounds[id] = { fileName: file.name, dataUrl: e.target.result };
+    renderSoundConfigUI();
+  };
+  reader.readAsDataURL(file);
+  input.value = '';
+}
+
+function clearPendingSound(id) {
+  pendingSounds[id] = null; // null = explicitly delete on save
+  renderSoundConfigUI();
+}
+
+function previewSound(id) {
+  const p = pendingSounds[id];
+  const dataUrl = (p !== undefined) ? (p ? p.dataUrl : null) : (activeSounds[id] ? activeSounds[id].dataUrl : null);
+  if (!dataUrl) return;
+  new Audio(dataUrl).play().catch(() => {});
+}
+
+// ── Apply pending sounds to server on Save Config ──
+async function applySoundPending() {
+  if (Object.keys(pendingSounds).length === 0) return;
+  try {
+    // Build update payload: changed/deleted sounds only
+    const updates = {};
+    for (const [id, val] of Object.entries(pendingSounds)) {
+      updates[id] = val; // { fileName, dataUrl } or null
+    }
+    await apiSave('saveSounds', updates);
+
+    // Merge into activeSounds & rebuild cache + buffers
+    for (const [id, val] of Object.entries(pendingSounds)) {
+      if (val === null) {
+        delete activeSounds[id];
+        delete audioBuffers[id];
+      } else {
+        activeSounds[id] = val;
+        await decodeSound(id, val.dataUrl);
+      }
+    }
+    try { localStorage.setItem(LS_SOUND_CACHE, JSON.stringify(activeSounds)); } catch(e) {}
+    pendingSounds = {};
+  } catch(e) {
+    showToast('Warning: sounds may not have saved to server: ' + e.message);
+  }
+}
+
+// ── Instrument system-click buttons ──
+function instrumentButtons() {
+  const selectors = [
+    '#screen-home    .icon-btn',
+    '#screen-main    .icon-btn',
+    '#screen-config  .btn-back',
+    '#screen-config  .btn-refetch',
+    '#screen-config  .btn-danger',
+    '#screen-report  .btn-back',
+    '#screen-summary .btn-back',
+    '.btn-cancel',
+    '.modal-btn',
+    '.btn-primary',
+    '.header-logo-link',
+  ];
+  selectors.forEach(sel => {
+    document.querySelectorAll(sel).forEach(el => {
+      if (el._sndInstr) return;
+      el._sndInstr = true;
+      el.addEventListener('click', () => playSound('system'), { capture: true });
+    });
+  });
+}
+
+// ── Bootstrap sound system ──
+updateSoundBtns();
+// Sounds load after bootstrap() connects to server; called from goHome(true) path
+// (see patched goHome below). For offline / cache: loadSoundsFromCache() is the fallback.
+
+// ── Patch quiz/nav functions to emit sounds ──
+const _origStartQuiz        = startQuiz;
+const _origMarkAnswer       = markAnswer;
+const _origNextWord         = nextWord;
+const _origFinishQuiz       = finishQuiz;
+const _origShowConfig       = showConfig;
+const _origSaveConfigAction = saveConfigAction;
+const _origGoHome           = goHome;
+
+window.startQuiz = async function() {
+  playSound('start');
+  return _origStartQuiz.apply(this, arguments);
+};
+window.markAnswer = function(correct) {
+  playSound(correct ? 'correct' : 'wrong');
+  return _origMarkAnswer.apply(this, arguments);
+};
+window.nextWord = function() {
+  // Only play sound if Next is actually active (original also guards this)
+  if (document.getElementById('btn-next').classList.contains('active')) playSound('next');
+  return _origNextWord.apply(this, arguments);
+};
+window.finishQuiz = async function() {
+  playSound('finish');
+  return _origFinishQuiz.apply(this, arguments);
+};
+window.showConfig = function() {
+  playSound('system');
+  pendingSounds = {}; // discard unsaved changes on re-entry
+  _origShowConfig.apply(this, arguments);
+  renderSoundConfigUI();
+};
+window.saveConfigAction = async function() {
+  await applySoundPending();
+  return _origSaveConfigAction.apply(this, arguments);
+};
+// Load sounds from server on first home load (forceReload path = after bootstrap/reset)
+window.goHome = function(forceReload) {
+  _origGoHome.apply(this, arguments);
+  if (forceReload) loadSoundsFromServer();
+};
+
+// Wire system-click sounds after DOM is settled
+setTimeout(instrumentButtons, 0);
+// Pre-load sounds from LS cache immediately; server fetch happens inside goHome(true)
+loadSoundsFromCache();
+
 </script>
 </body>
 </html>
