@@ -875,7 +875,10 @@ async function bootstrap() {
   goHome(true); // Change 2: browser refresh always reloads stats from server
 }
 
-bootstrap();
+bootstrap().then(() => {
+  // Load sounds from server after bootstrap has connected and cfg is fully populated
+  if (typeof _loadSoundsFromServer === 'function') _loadSoundsFromServer();
+});
 
 // ══════════════════════════════════════════════════
 // CLOUD CONFIG MERGE
@@ -1224,17 +1227,19 @@ function markAnswer(correct) {
     wrong:      w.wrong || 0
   });
 
-  // Last word — finish
-  if (session.currentIdx + 1 >= session.quizWords.length) {
-    setTimeout(() => finishQuiz(), 380);
-  }
+  // Last word — finish on next Next click (handled in nextWord)
+  // No auto-jump here
 }
 
 function nextWord() {
   if (!document.getElementById('btn-next').classList.contains('active')) return;
-  session.currentIdx++;
-  updateQuizHeader();
-  renderWord();
+  if (session.currentIdx + 1 >= session.quizWords.length) {
+    finishQuiz();
+  } else {
+    session.currentIdx++;
+    updateQuizHeader();
+    renderWord();
+  }
 }
 
 async function finishQuiz() {
@@ -1517,6 +1522,10 @@ async function _loadSoundsFromServer() {
       }
       try { localStorage.setItem(LS_SOUND_CACHE, JSON.stringify(_activeSounds)); } catch(e) {}
       await _decodeAll();
+      // Re-render sound config if the config screen happens to be open
+      if (document.getElementById('screen-config').classList.contains('active')) {
+        _renderSoundConfig();
+      }
     }
   } catch(e) {
     console.warn('[sound] server load failed:', e.message);
@@ -1724,6 +1733,7 @@ function _instrumentButtons() {
     '#screen-config .btn-back', '#screen-config .btn-danger',
     '#screen-report .btn-back', '#screen-summary .btn-back',
     '.btn-cancel', '.modal-btn', '.btn-primary', '.header-logo-link',
+    '#btn-answer',
   ].forEach(sel => document.querySelectorAll(sel).forEach(el => {
     if (el._sndOk) return; el._sndOk = true;
     el.addEventListener('click', () => playSound('system'), { capture: true });
@@ -1732,7 +1742,7 @@ function _instrumentButtons() {
 
 // ── init ──
 _updateSoundBtns();
-_loadSoundsFromCache();  // immediate from LS; server refresh called after bootstrap
+_loadSoundsFromCache();  // immediate from LS cache for fast startup
 setTimeout(_instrumentButtons, 0);
 
 // Patch showConfig to reset pending and render sound UI
@@ -1742,13 +1752,6 @@ showConfig = function() {
   _pendingSounds = {};
   _origShowConfig.apply(this, arguments);
   _renderSoundConfig();
-};
-
-// Re-trigger sound load after bootstrap connects (goHome(true) is called at end of bootstrap)
-const _origGoHome = goHome;
-goHome = function(forceReload) {
-  _origGoHome.apply(this, arguments);
-  if (forceReload) _loadSoundsFromServer();
 };
 
 // Patch markAnswer, nextWord, startQuiz, finishQuiz for sound playback
