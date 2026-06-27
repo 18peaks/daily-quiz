@@ -497,6 +497,20 @@
         <div id="refetch-msg" class="progress-msg"></div>
       </div>
     </div>
+    <div class="config-section-title">GitHub (for sound files)</div>
+    <div class="config-group">
+      <div class="config-label">GitHub Owner (username)</div>
+      <input id="cfg-gh-owner" class="config-input" type="text" placeholder="your-github-username">
+    </div>
+    <div class="config-group">
+      <div class="config-label">GitHub Repo</div>
+      <input id="cfg-gh-repo" class="config-input" type="text" placeholder="your-repo-name">
+    </div>
+    <div class="config-group">
+      <div class="config-label">GitHub Personal Access Token</div>
+      <input id="cfg-gh-token" class="config-input" type="password" placeholder="ghp_xxxxxxxxxxxx">
+      <div class="progress-msg" style="margin-top:0.3rem">Token is stored locally only — never sent to Google Sheets.</div>
+    </div>
     <div class="config-section-title">Quiz Settings</div>
     <div class="config-group">
       <div class="config-label">Quiz direction</div>
@@ -600,7 +614,8 @@ const LS_VOCAB   = 'dq_vocab';   // cache vocab content for display
 
 let cfg = {
   sheetUrl: '', direction: 'chinese',
-  wordsPerQuiz: 15, timeoutMin: 15, activeTag: 'all'
+  wordsPerQuiz: 15, timeoutMin: 15, activeTag: 'all',
+  githubToken: '', githubOwner: '', githubRepo: ''
 };
 let session = {
   day: 1, quizWords: [], currentIdx: 0,
@@ -659,6 +674,9 @@ function showConfig() {
   document.getElementById('cfg-direction').value = cfg.direction;
   document.getElementById('cfg-words').value     = cfg.wordsPerQuiz;
   document.getElementById('cfg-timeout').value   = cfg.timeoutMin;
+  document.getElementById('cfg-gh-owner').value  = cfg.githubOwner || '';
+  document.getElementById('cfg-gh-repo').value   = cfg.githubRepo  || '';
+  document.getElementById('cfg-gh-token').value  = cfg.githubToken || '';
   document.getElementById('refetch-progress').classList.add('hidden');
   showScreen('config');
 }
@@ -1306,7 +1324,11 @@ async function saveConfigAction() {
   cfg.direction    = document.getElementById('cfg-direction').value;
   cfg.wordsPerQuiz = Math.max(1, parseInt(document.getElementById('cfg-words').value)||15);
   cfg.timeoutMin   = Math.min(60, Math.max(1, parseInt(document.getElementById('cfg-timeout').value)||15));
+  cfg.githubOwner  = document.getElementById('cfg-gh-owner').value.trim();
+  cfg.githubRepo   = document.getElementById('cfg-gh-repo').value.trim();
+  cfg.githubToken  = document.getElementById('cfg-gh-token').value.trim();
   saveCfg();
+  await _applyPendingSounds();
   await pushConfig();
   showToast('Config saved');
   setTimeout(() => goHome(), 500);
@@ -1397,14 +1419,13 @@ document.addEventListener('click', function() {
 });
 
 // ══════════════════════════════════════════════════
-// SOUND SYSTEM
+// SOUND SYSTEM  (files stored in GitHub /sounds/ folder)
 // ══════════════════════════════════════════════════
-const LS_SOUND_MUTE  = 'dq_sound_muted';
-const LS_SOUND_CACHE = 'dq_sound_cache'; // localStorage fallback: { id: {fileName, dataUrl} }
+const LS_SOUND_MUTE  = 'dq_snd_muted';
+const LS_SOUND_CACHE = 'dq_snd_cache'; // { id: fileName } — short paths only
 
-// Sound category definitions
 const SOUND_DEFS = [
-  { id: 'system',  label: 'System click',    desc: 'Config, Report, Back, and other UI buttons' },
+  { id: 'system',  label: 'System click',    desc: 'Config, Report, Back & other UI buttons' },
   { id: 'start',   label: 'Start / New Quiz', desc: 'Start Quiz & New Quiz buttons' },
   { id: 'correct', label: '✓ Correct',        desc: 'V button in Quiz' },
   { id: 'wrong',   label: '✗ Wrong',          desc: 'X button in Quiz' },
@@ -1412,49 +1433,53 @@ const SOUND_DEFS = [
   { id: 'finish',  label: 'Quiz Finish',      desc: 'Played before showing final result' },
 ];
 
-let soundMuted  = localStorage.getItem(LS_SOUND_MUTE) === 'true';
-// activeSounds: what is currently live and decoded — loaded from server (or LS cache)
-let activeSounds = {};   // id → { fileName, dataUrl }
-// pendingSounds: staged in-config changes, NOT applied until Save Config
-let pendingSounds = {};  // id → { fileName, dataUrl } | null (null = delete)
+let _soundMuted    = localStorage.getItem(LS_SOUND_MUTE) === 'true';
+let _activeSounds  = {};  // id → fileName (e.g. "system.mp3") — from Sheets
+let _pendingSounds = {};  // id → File object | null — staged until Save Config
+let _audioCtx      = null;
+let _audioBuffers  = {};  // id → decoded AudioBuffer
 
-let audioCtx     = null;
-let audioBuffers = {};   // id → AudioBuffer (decoded, ready to play)
-
-function getAudioCtx() {
-  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-  return audioCtx;
+function _getCtx() {
+  if (!_audioCtx) _audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  return _audioCtx;
 }
 
-// ── Decode & cache one sound ──
-async function decodeSound(id, dataUrl) {
-  if (!dataUrl) { delete audioBuffers[id]; return; }
+// Build the raw GitHub Pages URL for a sound file
+function _soundUrl(fileName) {
+  const owner = cfg.githubOwner;
+  const repo  = cfg.githubRepo;
+  if (!owner || !repo || !fileName) return null;
+  return `https://${owner}.github.io/${repo}/sounds/${fileName}`;
+}
+
+async function _decodeFromUrl(id, url) {
+  if (!url) { delete _audioBuffers[id]; return; }
   try {
-    const ctx    = getAudioCtx();
-    const b64    = dataUrl.split(',')[1];
-    const binary = atob(b64);
-    const bytes  = new Uint8Array(binary.length);
-    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-    audioBuffers[id] = await ctx.decodeAudioData(bytes.buffer);
+    const res   = await fetch(url + '?t=' + Date.now());
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const buf   = await res.arrayBuffer();
+    const ctx   = _getCtx();
+    _audioBuffers[id] = await ctx.decodeAudioData(buf);
   } catch(e) {
-    console.warn('Sound decode failed for', id, e);
-    delete audioBuffers[id];
+    console.warn('[sound] fetch/decode failed:', id, e.message);
+    delete _audioBuffers[id];
   }
 }
 
-async function decodeAllActive() {
-  for (const [id, s] of Object.entries(activeSounds)) {
-    await decodeSound(id, s.dataUrl);
+async function _decodeAll() {
+  for (const [id, fileName] of Object.entries(_activeSounds)) {
+    const url = _soundUrl(fileName);
+    if (url) await _decodeFromUrl(id, url);
   }
 }
 
-// ── Play ──
+// ── play ──
 function playSound(id) {
-  if (soundMuted) return;
-  const buf = audioBuffers[id];
+  if (_soundMuted) return;
+  const buf = _audioBuffers[id];
   if (!buf) return;
   try {
-    const ctx = getAudioCtx();
+    const ctx = _getCtx();
     if (ctx.state === 'suspended') ctx.resume();
     const src = ctx.createBufferSource();
     src.buffer = buf;
@@ -1463,231 +1488,291 @@ function playSound(id) {
   } catch(e) {}
 }
 
-// ── Mute toggle ──
+// ── mute toggle ──
 function toggleSoundMute() {
-  soundMuted = !soundMuted;
-  localStorage.setItem(LS_SOUND_MUTE, soundMuted);
-  updateSoundBtns();
-  if (!soundMuted) playSound('system');
+  _soundMuted = !_soundMuted;
+  localStorage.setItem(LS_SOUND_MUTE, _soundMuted);
+  _updateSoundBtns();
+  if (!_soundMuted) playSound('system');
 }
-
-function updateSoundBtns() {
-  const icon = soundMuted ? '🔇' : '🔊';
-  ['home-sound-btn', 'quiz-sound-btn'].forEach(id => {
-    const btn = document.getElementById(id);
+function _updateSoundBtns() {
+  ['home-sound-btn','quiz-sound-btn'].forEach(btnId => {
+    const btn = document.getElementById(btnId);
     if (!btn) return;
-    btn.textContent = icon;
-    btn.classList.toggle('sound-off', soundMuted);
-    btn.title = soundMuted ? 'Sound off — click to enable' : 'Sound on — click to mute';
+    btn.textContent = _soundMuted ? '🔇' : '🔊';
+    btn.classList.toggle('sound-off', _soundMuted);
   });
 }
 
-// ── Fetch sounds from server → decode → cache in LS ──
-async function loadSoundsFromServer() {
+// ── load filenames from Sheets → fetch audio from GitHub → decode ──
+async function _loadSoundsFromServer() {
   if (!cfg.sheetUrl) return;
   try {
     const json = await apiFetch('getSounds');
-    if (json.sounds) {
-      activeSounds = json.sounds; // { id: { fileName, dataUrl } }
-      // Save to LS as offline cache
-      try { localStorage.setItem(LS_SOUND_CACHE, JSON.stringify(activeSounds)); } catch(e) {}
-      await decodeAllActive();
+    if (json && json.sounds) {
+      // sounds = { id: { fileName, dataUrl } } — we only use fileName now
+      _activeSounds = {};
+      for (const [id, val] of Object.entries(json.sounds)) {
+        if (val && val.fileName) _activeSounds[id] = val.fileName;
+      }
+      try { localStorage.setItem(LS_SOUND_CACHE, JSON.stringify(_activeSounds)); } catch(e) {}
+      await _decodeAll();
     }
   } catch(e) {
-    // Server unreachable — try LS cache
-    loadSoundsFromCache();
+    console.warn('[sound] server load failed:', e.message);
+    _loadSoundsFromCache();
   }
 }
 
-function loadSoundsFromCache() {
+function _loadSoundsFromCache() {
   try {
     const c = localStorage.getItem(LS_SOUND_CACHE);
-    if (c) activeSounds = JSON.parse(c);
-    decodeAllActive();
+    if (c) { _activeSounds = JSON.parse(c); _decodeAll(); }
   } catch(e) {}
 }
 
+// ── upload one file to GitHub via API ──
+async function _uploadToGitHub(fileName, file) {
+  const { githubOwner: owner, githubRepo: repo, githubToken: token } = cfg;
+  if (!owner || !repo || !token) throw new Error('GitHub owner/repo/token not set in Config');
+
+  // Read file as base64
+  const base64 = await new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload  = e => resolve(e.target.result.split(',')[1]);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+
+  const path    = `sounds/${fileName}`;
+  const apiUrl  = `https://api.github.com/repos/${owner}/${repo}/contents/${path}`;
+
+  // Check if file already exists (need its SHA to update)
+  let sha;
+  try {
+    const check = await fetch(apiUrl, {
+      headers: { Authorization: `token ${token}`, Accept: 'application/vnd.github.v3+json' }
+    });
+    if (check.ok) { const j = await check.json(); sha = j.sha; }
+  } catch(e) { /* new file */ }
+
+  const body = { message: `Update sound: ${fileName}`, content: base64 };
+  if (sha) body.sha = sha;
+
+  const res = await fetch(apiUrl, {
+    method: 'PUT',
+    headers: {
+      Authorization: `token ${token}`,
+      Accept: 'application/vnd.github.v3+json',
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(body)
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.message || 'GitHub upload failed: HTTP ' + res.status);
+  }
+}
+
+// ── delete one file from GitHub ──
+async function _deleteFromGitHub(fileName) {
+  const { githubOwner: owner, githubRepo: repo, githubToken: token } = cfg;
+  if (!owner || !repo || !token) return; // silently skip if not configured
+
+  const path   = `sounds/${fileName}`;
+  const apiUrl = `https://api.github.com/repos/${owner}/${repo}/contents/${path}`;
+
+  // Get SHA first
+  let sha;
+  try {
+    const check = await fetch(apiUrl, {
+      headers: { Authorization: `token ${token}`, Accept: 'application/vnd.github.v3+json' }
+    });
+    if (check.ok) { const j = await check.json(); sha = j.sha; }
+  } catch(e) {}
+  if (!sha) return; // already gone
+
+  await fetch(apiUrl, {
+    method: 'DELETE',
+    headers: {
+      Authorization: `token ${token}`,
+      Accept: 'application/vnd.github.v3+json',
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ message: `Remove sound: ${fileName}`, sha })
+  });
+}
+
 // ── Config UI ──
-function renderSoundConfigUI() {
+function _renderSoundConfig() {
   const container = document.getElementById('sound-config-items');
   if (!container) return;
   container.innerHTML = '';
 
   SOUND_DEFS.forEach(def => {
-    const active  = activeSounds[def.id];   // { fileName, dataUrl } | undefined
-    const pending = pendingSounds[def.id];  // { fileName, dataUrl } | null | undefined
+    const activeFile = _activeSounds[def.id];
+    const pending    = _pendingSounds[def.id];   // File | null | undefined
     const hasPending = pending !== undefined;
+    const hasSound   = hasPending ? !!pending : !!activeFile;
+    const fileLabel  = hasPending
+      ? (pending ? pending.name : '(will remove)')
+      : (activeFile ? activeFile : 'none');
 
-    // What to display as filename
-    let fileLabel;
-    if (hasPending) {
-      fileLabel = pending ? pending.fileName : '(removed)';
-    } else {
-      fileLabel = active ? active.fileName : 'none';
-    }
-
-    const pendingTag = hasPending ? '<span class="sound-pending">● unsaved</span>' : '';
-
-    // Show preview & clear only when there's an actual sound (pending or active)
-    const hasSound = hasPending ? !!pending : !!active;
+    const pendingTag = hasPending ? `<span class="sound-pending">● unsaved</span>` : '';
     const previewBtn = hasSound
-      ? `<button class="btn-snd" onclick="previewSound('${def.id}')" title="Preview">▶</button>` : '';
-    const clearBtn = hasSound
-      ? `<button class="btn-snd danger" onclick="clearPendingSound('${def.id}')" title="Remove">✕</button>` : '';
+      ? `<button class="btn-snd" onclick="_previewSound('${def.id}')">▶</button>` : '';
+    const clearBtn   = hasSound
+      ? `<button class="btn-snd red" onclick="_clearSound('${def.id}')">✕</button>` : '';
 
     const item = document.createElement('div');
     item.className = 'sound-item';
     item.innerHTML = `
-      <div class="sound-cat-label">${esc(def.label)}${pendingTag}</div>
+      <div class="sound-cat-label">${esc(def.label)} ${pendingTag}</div>
       <div class="sound-row">
         <span class="sound-desc">${esc(def.desc)}</span>
-        <span class="sound-file-label" title="${esc(fileLabel)}">${esc(fileLabel)}</span>
+        <span class="sound-file-lbl" title="${esc(fileLabel)}">${esc(fileLabel)}</span>
         ${previewBtn}${clearBtn}
-        <button class="btn-snd" onclick="triggerSoundUpload('${def.id}')">Upload</button>
+        <button class="btn-snd" onclick="_triggerUpload('${def.id}')">Upload</button>
       </div>`;
     container.appendChild(item);
 
-    // Hidden file input
     const inp = document.createElement('input');
     inp.type = 'file'; inp.accept = 'audio/*';
-    inp.id = 'sfin-' + def.id; inp.style.display = 'none';
-    inp.addEventListener('change', () => handleSoundUpload(def.id, inp));
+    inp.id = '_sfin_' + def.id; inp.style.display = 'none';
+    inp.addEventListener('change', () => _handleUpload(def.id, inp));
     container.appendChild(inp);
   });
 }
 
-function triggerSoundUpload(id) {
-  document.getElementById('sfin-' + id)?.click();
+function _triggerUpload(id) { document.getElementById('_sfin_' + id)?.click(); }
+
+function _handleUpload(id, inp) {
+  const file = inp.files[0]; if (!file) return;
+  if (file.size > 100 * 1024) { showToast('File too large — max 100 KB'); inp.value = ''; return; }
+  _pendingSounds[id] = file;   // store the File object
+  _renderSoundConfig();
+  inp.value = '';
 }
 
-function handleSoundUpload(id, input) {
-  const file = input.files[0];
-  if (!file) return;
-  if (file.size > 100 * 1024) { showToast('File too large — max 100 KB'); input.value = ''; return; }
-  const reader = new FileReader();
-  reader.onload = e => {
-    pendingSounds[id] = { fileName: file.name, dataUrl: e.target.result };
-    renderSoundConfigUI();
-  };
-  reader.readAsDataURL(file);
-  input.value = '';
-}
+function _clearSound(id)  { _pendingSounds[id] = null; _renderSoundConfig(); }
 
-function clearPendingSound(id) {
-  pendingSounds[id] = null; // null = explicitly delete on save
-  renderSoundConfigUI();
-}
-
-function previewSound(id) {
-  const p = pendingSounds[id];
-  const dataUrl = (p !== undefined) ? (p ? p.dataUrl : null) : (activeSounds[id] ? activeSounds[id].dataUrl : null);
-  if (!dataUrl) return;
-  new Audio(dataUrl).play().catch(() => {});
-}
-
-// ── Apply pending sounds to server on Save Config ──
-async function applySoundPending() {
-  if (Object.keys(pendingSounds).length === 0) return;
-  try {
-    // Build update payload: changed/deleted sounds only
-    const updates = {};
-    for (const [id, val] of Object.entries(pendingSounds)) {
-      updates[id] = val; // { fileName, dataUrl } or null
-    }
-    await apiSave('saveSounds', updates);
-
-    // Merge into activeSounds & rebuild cache + buffers
-    for (const [id, val] of Object.entries(pendingSounds)) {
-      if (val === null) {
-        delete activeSounds[id];
-        delete audioBuffers[id];
-      } else {
-        activeSounds[id] = val;
-        await decodeSound(id, val.dataUrl);
-      }
-    }
-    try { localStorage.setItem(LS_SOUND_CACHE, JSON.stringify(activeSounds)); } catch(e) {}
-    pendingSounds = {};
-  } catch(e) {
-    showToast('Warning: sounds may not have saved to server: ' + e.message);
+function _previewSound(id) {
+  const p = _pendingSounds[id];
+  if (p !== undefined) {
+    // pending: File object → create object URL
+    if (p) new Audio(URL.createObjectURL(p)).play().catch(() => {});
+  } else {
+    // active: fetch from GitHub Pages
+    const url = _soundUrl(_activeSounds[id]);
+    if (url) new Audio(url).play().catch(() => {});
   }
 }
 
-// ── Instrument system-click buttons ──
-function instrumentButtons() {
-  const selectors = [
-    '#screen-home    .icon-btn',
-    '#screen-main    .icon-btn',
-    '#screen-config  .btn-back',
-    '#screen-config  .btn-refetch',
-    '#screen-config  .btn-danger',
-    '#screen-report  .btn-back',
-    '#screen-summary .btn-back',
-    '.btn-cancel',
-    '.modal-btn',
-    '.btn-primary',
-    '.header-logo-link',
-  ];
-  selectors.forEach(sel => {
-    document.querySelectorAll(sel).forEach(el => {
-      if (el._sndInstr) return;
-      el._sndInstr = true;
-      el.addEventListener('click', () => playSound('system'), { capture: true });
-    });
-  });
+// ── apply pending on Save Config ──
+// Called inside saveConfigAction() AFTER cfg is updated with new GitHub fields
+async function _applyPendingSounds() {
+  if (Object.keys(_pendingSounds).length === 0) return;
+
+  const sheetsUpdate = {};  // what to send to Sheets: { id: {fileName} | null }
+
+  for (const [id, val] of Object.entries(_pendingSounds)) {
+    if (val === null) {
+      // Delete: remove from GitHub and Sheets
+      const oldFile = _activeSounds[id];
+      if (oldFile) {
+        try { await _deleteFromGitHub(oldFile); } catch(e) { console.warn('[sound] delete failed:', e.message); }
+      }
+      delete _activeSounds[id];
+      delete _audioBuffers[id];
+      sheetsUpdate[id] = null;
+    } else {
+      // Upload File to GitHub
+      const fileName = id + '.' + val.name.split('.').pop();  // e.g. system.mp3
+      try {
+        await _uploadToGitHub(fileName, val);
+      } catch(e) {
+        showToast('GitHub upload failed for ' + id + ': ' + e.message);
+        throw e;  // abort save
+      }
+      _activeSounds[id] = fileName;
+      sheetsUpdate[id]  = { fileName };
+      // Decode for immediate playback
+      const url = _soundUrl(fileName);
+      if (url) {
+        // Small delay to let GitHub CDN propagate
+        setTimeout(() => _decodeFromUrl(id, url), 3000);
+      }
+    }
+  }
+
+  // Save filename references to Sheets
+  try {
+    await apiSave('saveSounds', sheetsUpdate);
+  } catch(e) {
+    showToast('Could not save sound references to Sheets: ' + e.message);
+    throw e;
+  }
+
+  try { localStorage.setItem(LS_SOUND_CACHE, JSON.stringify(_activeSounds)); } catch(e) {}
+  _pendingSounds = {};
 }
 
-// ── Bootstrap sound system ──
-updateSoundBtns();
-// Sounds load after bootstrap() connects to server; called from goHome(true) path
-// (see patched goHome below). For offline / cache: loadSoundsFromCache() is the fallback.
+// ── system-click sounds on nav/action buttons ──
+function _instrumentButtons() {
+  [
+    '#screen-home .icon-btn', '#screen-main .icon-btn',
+    '#screen-config .btn-back', '#screen-config .btn-danger',
+    '#screen-report .btn-back', '#screen-summary .btn-back',
+    '.btn-cancel', '.modal-btn', '.btn-primary', '.header-logo-link',
+  ].forEach(sel => document.querySelectorAll(sel).forEach(el => {
+    if (el._sndOk) return; el._sndOk = true;
+    el.addEventListener('click', () => playSound('system'), { capture: true });
+  }));
+}
 
-// ── Patch quiz/nav functions to emit sounds ──
-const _origStartQuiz        = startQuiz;
-const _origMarkAnswer       = markAnswer;
-const _origNextWord         = nextWord;
-const _origFinishQuiz       = finishQuiz;
-const _origShowConfig       = showConfig;
-const _origSaveConfigAction = saveConfigAction;
-const _origGoHome           = goHome;
+// ── init ──
+_updateSoundBtns();
+_loadSoundsFromCache();  // immediate from LS; server refresh called after bootstrap
+setTimeout(_instrumentButtons, 0);
 
-window.startQuiz = async function() {
-  playSound('start');
-  return _origStartQuiz.apply(this, arguments);
+// Patch showConfig to reset pending and render sound UI
+const _origShowConfig = showConfig;
+showConfig = function() {
+  playSound('system');
+  _pendingSounds = {};
+  _origShowConfig.apply(this, arguments);
+  _renderSoundConfig();
 };
-window.markAnswer = function(correct) {
+
+// Re-trigger sound load after bootstrap connects (goHome(true) is called at end of bootstrap)
+const _origGoHome = goHome;
+goHome = function(forceReload) {
+  _origGoHome.apply(this, arguments);
+  if (forceReload) _loadSoundsFromServer();
+};
+
+// Patch markAnswer, nextWord, startQuiz, finishQuiz for sound playback
+const _origMarkAnswer = markAnswer;
+markAnswer = function(correct) {
   playSound(correct ? 'correct' : 'wrong');
   return _origMarkAnswer.apply(this, arguments);
 };
-window.nextWord = function() {
-  // Only play sound if Next is actually active (original also guards this)
+const _origNextWord = nextWord;
+nextWord = function() {
   if (document.getElementById('btn-next').classList.contains('active')) playSound('next');
   return _origNextWord.apply(this, arguments);
 };
-window.finishQuiz = async function() {
+const _origStartQuiz = startQuiz;
+startQuiz = async function() {
+  playSound('start');
+  return _origStartQuiz.apply(this, arguments);
+};
+const _origFinishQuiz = finishQuiz;
+finishQuiz = async function() {
   playSound('finish');
   return _origFinishQuiz.apply(this, arguments);
 };
-window.showConfig = function() {
-  playSound('system');
-  pendingSounds = {}; // discard unsaved changes on re-entry
-  _origShowConfig.apply(this, arguments);
-  renderSoundConfigUI();
-};
-window.saveConfigAction = async function() {
-  await applySoundPending();
-  return _origSaveConfigAction.apply(this, arguments);
-};
-// Load sounds from server on first home load (forceReload path = after bootstrap/reset)
-window.goHome = function(forceReload) {
-  _origGoHome.apply(this, arguments);
-  if (forceReload) loadSoundsFromServer();
-};
 
-// Wire system-click sounds after DOM is settled
-setTimeout(instrumentButtons, 0);
-// Pre-load sounds from LS cache immediately; server fetch happens inside goHome(true)
-loadSoundsFromCache();
 
 </script>
 </body>
