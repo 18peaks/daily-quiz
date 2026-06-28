@@ -875,10 +875,7 @@ async function bootstrap() {
   goHome(true); // Change 2: browser refresh always reloads stats from server
 }
 
-bootstrap().then(() => {
-  // Load sounds from server after bootstrap has connected and cfg is fully populated
-  if (typeof _loadSoundsFromServer === 'function') _loadSoundsFromServer();
-});
+bootstrap();
 
 // ══════════════════════════════════════════════════
 // CLOUD CONFIG MERGE
@@ -1186,6 +1183,7 @@ document.addEventListener('click', function() {
 });
 
 function revealAnswer() {
+  playSound('system');
   document.getElementById('answer-area').classList.remove('hidden');
   document.getElementById('btn-answer').classList.add('hidden');
   document.getElementById('vx-row').classList.remove('hidden');
@@ -1226,20 +1224,18 @@ function markAnswer(correct) {
     wasCorrect: correct,
     wrong:      w.wrong || 0
   });
-
-  // Last word — finish on next Next click (handled in nextWord)
-  // No auto-jump here
 }
 
 function nextWord() {
   if (!document.getElementById('btn-next').classList.contains('active')) return;
+  // Last word — go to finish instead of advancing
   if (session.currentIdx + 1 >= session.quizWords.length) {
     finishQuiz();
-  } else {
-    session.currentIdx++;
-    updateQuizHeader();
-    renderWord();
+    return;
   }
+  session.currentIdx++;
+  updateQuizHeader();
+  renderWord();
 }
 
 async function finishQuiz() {
@@ -1516,20 +1512,22 @@ async function _loadSoundsFromServer() {
     const json = await apiFetch('getSounds');
     if (json && json.sounds) {
       // sounds = { id: { fileName, dataUrl } } — we only use fileName now
-      _activeSounds = {};
+      const fetched = {};
       for (const [id, val] of Object.entries(json.sounds)) {
-        if (val && val.fileName) _activeSounds[id] = val.fileName;
+        if (val && val.fileName) fetched[id] = val.fileName;
       }
-      try { localStorage.setItem(LS_SOUND_CACHE, JSON.stringify(_activeSounds)); } catch(e) {}
+      // Only update _activeSounds if server returned at least one sound entry;
+      // otherwise keep the locally-cached state to avoid clearing UI on empty response
+      if (Object.keys(fetched).length > 0) {
+        _activeSounds = fetched;
+        try { localStorage.setItem(LS_SOUND_CACHE, JSON.stringify(_activeSounds)); } catch(e) {}
+      }
       await _decodeAll();
-      // Re-render sound config if the config screen happens to be open
-      if (document.getElementById('screen-config').classList.contains('active')) {
-        _renderSoundConfig();
-      }
     }
   } catch(e) {
     console.warn('[sound] server load failed:', e.message);
-    _loadSoundsFromCache();
+    // Fallback: decode from whatever is already in _activeSounds (loaded from cache)
+    await _decodeAll();
   }
 }
 
@@ -1740,9 +1738,18 @@ function _instrumentButtons() {
   }));
 }
 
+// ── Resume AudioContext on first user interaction (required on iOS/mobile) ──
+function _resumeCtxOnInteraction() {
+  if (_audioCtx && _audioCtx.state === 'suspended') {
+    _audioCtx.resume().catch(() => {});
+  }
+}
+document.addEventListener('touchstart', _resumeCtxOnInteraction, { once: false, passive: true });
+document.addEventListener('click',      _resumeCtxOnInteraction, { once: false, passive: true });
+
 // ── init ──
 _updateSoundBtns();
-_loadSoundsFromCache();  // immediate from LS cache for fast startup
+_loadSoundsFromCache();  // immediate from LS; server refresh called after bootstrap
 setTimeout(_instrumentButtons, 0);
 
 // Patch showConfig to reset pending and render sound UI
@@ -1752,6 +1759,13 @@ showConfig = function() {
   _pendingSounds = {};
   _origShowConfig.apply(this, arguments);
   _renderSoundConfig();
+};
+
+// Re-trigger sound load after bootstrap connects (goHome(true) is called at end of bootstrap)
+const _origGoHome = goHome;
+goHome = function(forceReload) {
+  _origGoHome.apply(this, arguments);
+  if (forceReload) _loadSoundsFromServer();
 };
 
 // Patch markAnswer, nextWord, startQuiz, finishQuiz for sound playback
