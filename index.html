@@ -1429,18 +1429,17 @@ const SOUND_DEFS = [
 ];
 
 let _soundMuted    = localStorage.getItem(LS_SOUND_MUTE) === 'true';
-let _activeSounds  = {};  // id → fileName (e.g. "system.mp3") — from Sheets
+let _activeSounds  = {};  // id → fileName (e.g. "my_click.mp3") — from Sheets/cache
 let _pendingSounds = {};  // id → File object | null — staged until Save Config
 let _audioCtx      = null;
-let _audioBuffers  = {};  // id → decoded AudioBuffer
-let _rawBuffers    = {};  // id → ArrayBuffer (kept for re-decode after iOS unlock)
+let _audioBuffers  = {};  // id → decoded AudioBuffer (ready to play)
+let _rawBuffers    = {};  // id → ArrayBuffer (fetched but not yet decoded — for iOS unlock)
+let _audioUnlocked = false; // true after first user gesture on iOS
 
-function _getCtx() {
-  // NEVER auto-create AudioContext here — on Chrome iOS (WebKit) creating it
-  // outside a user-gesture produces a silently broken context that can't be
-  // resumed.  Only _unlockAudio() (called from touchstart/click) creates it.
-  return _audioCtx || null;
-}
+// ── NEVER auto-create AudioContext here ──
+// Chrome iOS / Safari forbid creating AudioContext outside a user gesture.
+// _unlockAudio() (bound to touchstart+click) does the creation+resume inside a gesture.
+function _getCtx() { return _audioCtx || null; }
 
 // Build the raw GitHub Pages URL for a sound file
 function _soundUrl(fileName) {
@@ -1450,16 +1449,17 @@ function _soundUrl(fileName) {
   return `https://${owner}.github.io/${repo}/sounds/${fileName}`;
 }
 
+// Fetch audio from GitHub and decode it (or just store the raw bytes if ctx not ready yet)
 async function _decodeFromUrl(id, url) {
   if (!url) { delete _audioBuffers[id]; delete _rawBuffers[id]; return; }
   try {
-    const res   = await fetch(url + '?t=' + Date.now());
+    const res = await fetch(url + '?t=' + Date.now());
     if (!res.ok) throw new Error('HTTP ' + res.status);
-    const buf   = await res.arrayBuffer();
-    _rawBuffers[id] = buf;   // always keep the raw bytes
-    const ctx   = _getCtx();
-    if (!ctx) { console.warn('[sound] AudioContext not ready yet — will decode on first touch'); return; }
-    _audioBuffers[id] = await ctx.decodeAudioData(buf.slice(0)); // slice so buffer stays valid
+    const raw = await res.arrayBuffer();
+    _rawBuffers[id] = raw;           // always keep raw bytes for iOS deferred decode
+    const ctx = _getCtx();
+    if (!ctx) return;                // iOS: context not unlocked yet — _unlockAudio will decode
+    _audioBuffers[id] = await ctx.decodeAudioData(raw.slice(0));
   } catch(e) {
     console.warn('[sound] fetch/decode failed:', id, e.message);
     delete _audioBuffers[id];
@@ -1479,15 +1479,13 @@ function playSound(id) {
   const buf = _audioBuffers[id];
   if (!buf) return;
   const ctx = _getCtx();
-  if (!ctx) return; // context not yet unlocked (Chrome iOS — waiting for first gesture)
+  if (!ctx) return;
   try {
     const doPlay = () => {
-      try {
-        const src = ctx.createBufferSource();
-        src.buffer = buf;
-        src.connect(ctx.destination);
-        src.start(0);
-      } catch(e) {}
+      const src = ctx.createBufferSource();
+      src.buffer = buf;
+      src.connect(ctx.destination);
+      src.start(0);
     };
     if (ctx.state === 'suspended' || ctx.state === 'interrupted') {
       ctx.resume().then(doPlay).catch(() => {});
@@ -1513,20 +1511,45 @@ function _updateSoundBtns() {
   });
 }
 
+// ── iOS / Chrome-iOS AudioContext unlock ──
+// All iOS browsers (including Chrome iOS) use WebKit and require AudioContext
+// to be created AND resumed inside a direct user-gesture handler.
+// Strategy: fetch raw audio bytes immediately at load; decode them here after unlock.
+async function _unlockAudio() {
+  // Create context inside gesture if not yet done
+  if (!_audioCtx) {
+    try { _audioCtx = new (window.AudioContext || window.webkitAudioContext)(); }
+    catch(e) { return; }
+  }
+  // Resume if suspended or interrupted
+  if (_audioCtx.state !== 'running') {
+    try { await _audioCtx.resume(); } catch(e) { return; }
+  }
+  // Decode all prefetched raw buffers exactly once
+  if (!_audioUnlocked && _audioCtx.state === 'running') {
+    _audioUnlocked = true;
+    for (const [id, raw] of Object.entries(_rawBuffers)) {
+      if (!_audioBuffers[id] && raw) {
+        try { _audioBuffers[id] = await _audioCtx.decodeAudioData(raw.slice(0)); } catch(e) {}
+      }
+    }
+  }
+}
+document.addEventListener('touchstart', _unlockAudio, { passive: true });
+document.addEventListener('click',      _unlockAudio, { passive: true });
+
 // ── load filenames from Sheets → fetch audio from GitHub → decode ──
 async function _loadSoundsFromServer() {
   if (!cfg.sheetUrl) return;
   try {
     const json = await apiFetch('getSounds');
     if (json && json.sounds) {
-      // Only merge entries that the server actually returned — never blank-wipe
-      // what was already loaded from cache (handles empty-Sheets or network hiccup)
+      // Merge server entries into _activeSounds — never wipe existing cache entries
       let changed = false;
       for (const [id, val] of Object.entries(json.sounds)) {
         if (val && val.fileName) {
           if (_activeSounds[id] !== val.fileName) { _activeSounds[id] = val.fileName; changed = true; }
-        } else if (val === null && _activeSounds[id]) {
-          // Server explicitly says this slot was cleared
+        } else if (val === null && id in _activeSounds) {
           delete _activeSounds[id]; changed = true;
         }
       }
@@ -1537,8 +1560,7 @@ async function _loadSoundsFromServer() {
     }
   } catch(e) {
     console.warn('[sound] server load failed — using local cache:', e.message);
-    // Cache already loaded at init; just re-decode in case ctx wasn't ready then
-    await _decodeAll();
+    await _decodeAll(); // cache already in _activeSounds from _loadSoundsFromCache()
   }
 }
 
@@ -1705,17 +1727,12 @@ async function _applyPendingSounds() {
       sheetsUpdate[id] = null;
     } else {
       // Upload File to GitHub — preserve the user's original filename
-      const fileName = val.name;  // e.g. "my_click.mp3" — keep as-is
+      const fileName = val.name;  // e.g. "ding.mp3" — keep as-is
       try {
         await _uploadToGitHub(fileName, val);
       } catch(e) {
         showToast('GitHub upload failed for ' + id + ': ' + e.message);
         throw e;  // abort save
-      }
-      // If this slot previously had a different file, delete the old one
-      const oldFile = _activeSounds[id];
-      if (oldFile && oldFile !== fileName) {
-        try { await _deleteFromGitHub(oldFile); } catch(e) { console.warn('[sound] old file delete failed:', e.message); }
       }
       _activeSounds[id] = fileName;
       sheetsUpdate[id]  = { fileName };
@@ -1747,50 +1764,11 @@ function _instrumentButtons() {
     '#screen-config .btn-back', '#screen-config .btn-danger',
     '#screen-report .btn-back', '#screen-summary .btn-back',
     '.btn-cancel', '.modal-btn', '.btn-primary', '.header-logo-link',
-    '#btn-answer',
   ].forEach(sel => document.querySelectorAll(sel).forEach(el => {
     if (el._sndOk) return; el._sndOk = true;
     el.addEventListener('click', () => playSound('system'), { capture: true });
   }));
 }
-
-// Patch revealAnswer to play system click (btn-answer is rebuilt each renderWord)
-const _origRevealAnswer = revealAnswer;
-revealAnswer = function() {
-  playSound('system');
-  return _origRevealAnswer.apply(this, arguments);
-};
-
-// ── Chrome iOS / iOS Safari AudioContext unlock ──
-// WebKit (used by ALL iOS browsers including Chrome iOS) forbids creating or
-// resuming AudioContext outside a user-gesture.  Strategy:
-//   1. Create the context the very first time the user touches/clicks.
-//   2. Resume it if suspended or interrupted.
-//   3. Decode all prefetched raw ArrayBuffers exactly once.
-let _audioUnlocked = false;
-async function _unlockAudio() {
-  // Step 1 — create context inside gesture if not yet done
-  if (!_audioCtx) {
-    try {
-      _audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    } catch(e) { return; }
-  }
-  // Step 2 — resume if needed
-  if (_audioCtx.state === 'suspended' || _audioCtx.state === 'interrupted') {
-    try { await _audioCtx.resume(); } catch(e) { return; }
-  }
-  // Step 3 — decode raw buffers exactly once after context is running
-  if (!_audioUnlocked && _audioCtx.state === 'running') {
-    _audioUnlocked = true;
-    for (const [id, raw] of Object.entries(_rawBuffers)) {
-      if (!_audioBuffers[id] && raw) {
-        try { _audioBuffers[id] = await _audioCtx.decodeAudioData(raw.slice(0)); } catch(e) {}
-      }
-    }
-  }
-}
-document.addEventListener('touchstart', _unlockAudio, { passive: true });
-document.addEventListener('click',      _unlockAudio, { passive: true });
 
 // ── init ──
 _updateSoundBtns();
@@ -1826,10 +1804,10 @@ nextWord = function() {
   const isLast = (session.currentIdx + 1 >= session.quizWords.length);
   playSound('next');
   if (isLast) {
-    // Disable the button immediately so double-tap can't trigger twice
+    // Disable immediately so double-tap can't fire twice
     btnNext.classList.remove('active');
     btnNext.style.pointerEvents = 'none';
-    // Wait 1 second, then play finish sound and go to report
+    // Wait 1 second then play finish sound, then go to report
     setTimeout(() => {
       playSound('finish');
       setTimeout(() => finishQuiz(), 400);
@@ -1843,10 +1821,11 @@ startQuiz = async function() {
   playSound('start');
   return _origStartQuiz.apply(this, arguments);
 };
-const _origFinishQuiz = finishQuiz;
-finishQuiz = async function() {
-  // finish sound is already played by the nextWord patch (with 1s delay)
-  return _origFinishQuiz.apply(this, arguments);
+// Patch revealAnswer so Show Answer button plays system click
+const _origRevealAnswer = revealAnswer;
+revealAnswer = function() {
+  playSound('system');
+  return _origRevealAnswer.apply(this, arguments);
 };
 
 
