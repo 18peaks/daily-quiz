@@ -1557,6 +1557,10 @@ async function _loadSoundsFromServer() {
         try { localStorage.setItem(LS_SOUND_CACHE, JSON.stringify(_activeSounds)); } catch(e) {}
       }
       await _decodeAll();
+      // If config screen is open, refresh the sound UI so filenames appear
+      if (document.getElementById('screen-config').classList.contains('active')) {
+        _renderSoundConfig();
+      }
     }
   } catch(e) {
     console.warn('[sound] server load failed — using local cache:', e.message);
