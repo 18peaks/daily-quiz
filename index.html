@@ -887,6 +887,12 @@ function mergeCloudConfig(cc) {
   if (cc.wordsPerQuiz) cfg.wordsPerQuiz = cc.wordsPerQuiz;
   if (cc.timeoutMin)   cfg.timeoutMin   = cc.timeoutMin;
   if (cc.activeTag)    cfg.activeTag    = cc.activeTag;
+  // githubOwner/githubRepo are PUBLIC (just identify the Pages URL) — safe to sync
+  // so every device can build sound URLs without manual entry.
+  // githubToken is a SECRET and intentionally never synced — only needed on the
+  // device used to upload sounds.
+  if (cc.githubOwner && !cfg.githubOwner) cfg.githubOwner = cc.githubOwner;
+  if (cc.githubRepo  && !cfg.githubRepo)  cfg.githubRepo  = cc.githubRepo;
   saveCfg();
 }
 
@@ -895,7 +901,9 @@ async function pushConfig() {
     await apiSave('saveConfig', {
       sheetUrl: cfg.sheetUrl, direction: cfg.direction,
       wordsPerQuiz: cfg.wordsPerQuiz, timeoutMin: cfg.timeoutMin,
-      activeTag: cfg.activeTag, savedAt: new Date().toISOString()
+      activeTag: cfg.activeTag,
+      githubOwner: cfg.githubOwner, githubRepo: cfg.githubRepo, // public, safe to store
+      savedAt: new Date().toISOString()
     });
   } catch(e) { console.warn('Config push failed:', e.message); }
 }
@@ -1557,10 +1565,6 @@ async function _loadSoundsFromServer() {
         try { localStorage.setItem(LS_SOUND_CACHE, JSON.stringify(_activeSounds)); } catch(e) {}
       }
       await _decodeAll();
-      // If config screen is open, refresh the sound UI so filenames appear
-      if (document.getElementById('screen-config').classList.contains('active')) {
-        _renderSoundConfig();
-      }
     }
   } catch(e) {
     console.warn('[sound] server load failed — using local cache:', e.message);
