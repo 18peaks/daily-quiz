@@ -1232,30 +1232,29 @@ function nextWord() {
   renderWord();
 }
 
-async function finishQuiz() {
+function finishQuiz() {
   stopTimers();
 
-  // Save results to cloud
-  try {
-    await apiSave('saveResults', session.results.map(r => ({
-      rowNum:     r.rowNum,
-      english:    r.english,
-      wasCorrect: r.wasCorrect
-    })));
-    // Increment day counter if this is the first quiz of a new day
-    const today = new Date().toISOString().slice(0,10);
-    const lastDay = localStorage.getItem('dq_lastQuizDate');
-    if (lastDay !== today) {
-      session.day++;
-      localStorage.setItem('dq_lastQuizDate', today);
-      saveSession();
-    }
-  } catch(e) {
-    showToast('Warning: results may not have saved: ' + e.message);
+  // Increment day counter if this is the first quiz of a new day
+  const today = new Date().toISOString().slice(0,10);
+  const lastDay = localStorage.getItem('dq_lastQuizDate');
+  if (lastDay !== today) {
+    session.day++;
+    localStorage.setItem('dq_lastQuizDate', today);
+    saveSession();
   }
 
   statsCache = null; // Change 2: invalidate so home shows fresh stats after quiz
-  showQuizReport();
+  showQuizReport(); // show immediately — don't make the user wait on the network
+
+  // Save results to cloud in the background; report is already on screen either way
+  apiSave('saveResults', session.results.map(r => ({
+    rowNum:     r.rowNum,
+    english:    r.english,
+    wasCorrect: r.wasCorrect
+  }))).catch(e => {
+    showToast('Warning: results may not have saved: ' + e.message);
+  });
 }
 
 function showQuizReport() {
@@ -1450,10 +1449,16 @@ function _soundUrl(fileName) {
 // 2. Play a 1-frame silent buffer — this unlocks the context for all future use.
 // 3. Then decode pre-fetched raw bytes in background (no gesture required for decode).
 function _ensureCtx() {
-  if (_ctxUnlocked && _audioCtx) return _audioCtx;
   try {
     if (!_audioCtx) {
       _audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    // iOS (incl. Chrome-on-iOS, which shares Safari's WebKit audio engine) often
+    // leaves the context 'suspended' even inside a gesture handler. Starting a
+    // buffer source on a suspended context is silent and throws no error, so we
+    // must explicitly resume it on every gesture, not just the first one.
+    if (_audioCtx.state !== 'running') {
+      _audioCtx.resume();
     }
     if (!_ctxUnlocked) {
       // Play a silent 1-frame buffer to unlock — this is the key step
@@ -1837,11 +1842,9 @@ nextWord = function() {
     // Disable immediately so double-tap can't fire twice
     btnNext.classList.remove('active');
     btnNext.style.pointerEvents = 'none';
-    // Wait 1 second then play finish sound, then go to report
-    setTimeout(() => {
-      playSound('finish');
-      setTimeout(() => finishQuiz(), 400);
-    }, 1000);
+    // Play the finish sound after a beat, purely cosmetic — doesn't block the report
+    setTimeout(() => playSound('finish'), 1000);
+    finishQuiz();
     return;
   }
   return _origNextWord.apply(this, arguments);
