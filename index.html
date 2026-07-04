@@ -536,6 +536,8 @@
     <div id="sound-config-items">
       <!-- populated by renderSoundConfigUI() -->
     </div>
+    <button class="btn-refetch" style="width:100%" onclick="verifySoundFiles()">🔎 Verify sound files are live</button>
+    <div id="sound-verify-result" class="progress-msg" style="margin-top:0.3rem"></div>
     <hr class="config-divider">
     <button class="btn-save" id="btn-save-config">Save Config</button>
   </div>
@@ -887,6 +889,13 @@ function mergeCloudConfig(cc) {
   if (cc.wordsPerQuiz) cfg.wordsPerQuiz = cc.wordsPerQuiz;
   if (cc.timeoutMin)   cfg.timeoutMin   = cc.timeoutMin;
   if (cc.activeTag)    cfg.activeTag    = cc.activeTag;
+  // githubOwner/githubRepo are needed on every device to build sound playback
+  // URLs (https://{owner}.github.io/{repo}/sounds/...), so they're synced via
+  // cloud config too. githubToken is intentionally NEVER synced — it's a
+  // write credential only needed on whichever device uploads new sounds, and
+  // stays local-only for security.
+  if (cc.githubOwner)  cfg.githubOwner  = cc.githubOwner;
+  if (cc.githubRepo)   cfg.githubRepo   = cc.githubRepo;
   saveCfg();
 }
 
@@ -895,7 +904,9 @@ async function pushConfig() {
     await apiSave('saveConfig', {
       sheetUrl: cfg.sheetUrl, direction: cfg.direction,
       wordsPerQuiz: cfg.wordsPerQuiz, timeoutMin: cfg.timeoutMin,
-      activeTag: cfg.activeTag, savedAt: new Date().toISOString()
+      activeTag: cfg.activeTag,
+      githubOwner: cfg.githubOwner, githubRepo: cfg.githubRepo,
+      savedAt: new Date().toISOString()
     });
   } catch(e) { console.warn('Config push failed:', e.message); }
 }
@@ -1483,6 +1494,36 @@ function playSound(id) {
     const p = el.play();
     if (p && p.catch) p.catch(e => console.warn('[sound] play failed:', id, e.message));
   } catch(e) { console.warn('[sound] play error:', id, e.message); }
+}
+
+// ── verify each configured sound is actually reachable on GitHub Pages ──
+// Guards against the exact failure mode that prompted this: a sound file
+// commits fine to the repo, but a GitHub Pages deployment silently fails
+// (transient infra error) so the file 404s on the live site indefinitely,
+// even though Config still shows it as "set" (that info comes from Sheets,
+// not from the live site).
+async function verifySoundFiles() {
+  const out = document.getElementById('sound-verify-result');
+  const entries = Object.entries(_activeSounds).filter(([,fileName]) => fileName);
+  if (entries.length === 0) { out.textContent = 'No sound files configured yet.'; return; }
+  if (!cfg.githubOwner || !cfg.githubRepo) {
+    out.textContent = '⚠ GitHub owner/repo not set — cannot build URLs to check.';
+    return;
+  }
+  out.textContent = `Checking ${entries.length} file(s)...`;
+  const broken = [];
+  for (const [id, fileName] of entries) {
+    const url = _soundUrl(fileName);
+    try {
+      const res = await fetch(url, { method: 'HEAD', cache: 'no-store' });
+      if (!res.ok) broken.push(`${id} (${fileName})`);
+    } catch(e) {
+      broken.push(`${id} (${fileName})`);
+    }
+  }
+  out.textContent = broken.length === 0
+    ? `✓ All ${entries.length} sound file(s) are live.`
+    : `✗ Not live yet, still 404 on Pages: ${broken.join(', ')}. Check github.com → Actions for a failed "pages build and deployment" run and re-run it, or push any small commit to trigger a fresh deploy.`;
 }
 
 // ── mute toggle ──
