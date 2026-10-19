@@ -531,6 +531,7 @@
       </div>
     </div>
     <div class="config-section-title">Data Management</div>
+    <button class="btn-refetch" style="width:100%" onclick="doRecalcStats()">↻ Recalculate stats</button>
     <button class="btn-danger" onclick="doResetRecords()">⚠ Reset all records</button>
     <div class="config-section-title">Sound Effects</div>
     <div id="sound-config-items">
@@ -613,6 +614,7 @@
 const LS_CONFIG  = 'dq_config';
 const LS_SESSION = 'dq_session';
 const LS_VOCAB   = 'dq_vocab';   // cache vocab content for display
+const LS_STATS   = 'dq_stats';   // last known Home stats, per tag — shown instantly at startup
 
 let cfg = {
   sheetUrl: '', direction: 'chinese',
@@ -640,6 +642,28 @@ function loadLocal() {
 function saveCfg()     { localStorage.setItem(LS_CONFIG,  JSON.stringify(cfg)); }
 function saveSession() { localStorage.setItem(LS_SESSION, JSON.stringify({day: session.day})); }
 function saveVocabCache() { localStorage.setItem(LS_VOCAB, JSON.stringify(vocabCache)); }
+
+// ── Last-known stats (shown instantly at startup, refreshed from the server afterwards) ──
+function readStatsCache() {
+  try {
+    const o = JSON.parse(localStorage.getItem(LS_STATS) || 'null');
+    const tag = cfg.activeTag || 'all';
+    if (o && o.byTag && o.byTag[tag]) return { stats: o.byTag[tag], tags: o.tags || [] };
+  } catch(e) {}
+  return null;
+}
+function saveStatsCache(stats, tags, tag) {
+  if (!stats) return;
+  try {
+    let o = {};
+    try { o = JSON.parse(localStorage.getItem(LS_STATS) || '{}') || {}; } catch(e) {}
+    o.byTag = o.byTag || {};
+    o.byTag[tag || cfg.activeTag || 'all'] = stats;
+    if (tags && tags.length) o.tags = tags;
+    localStorage.setItem(LS_STATS, JSON.stringify(o));
+  } catch(e) {}
+}
+function clearStatsCache() { try { localStorage.removeItem(LS_STATS); } catch(e) {} }
 
 // ══════════════════════════════════════════════════
 // SCREEN ROUTING
@@ -791,15 +815,38 @@ function apiUrl(action, params) {
   return url;
 }
 
-async function apiFetch(action, params) {
-  const res = await fetch(apiUrl(action, params));
-  if (!res.ok) {
-    if (res.status === 404) throw new Error('URL not found (404) — check Apps Script URL in Config');
-    throw new Error('HTTP ' + res.status + ' from server');
+// Reads can pass opts = { timeout: ms, retries: n } — a stalled request is aborted and retried.
+// Actions that change data (save/generate/refetch/reset) are called without opts: no timeout, no retry.
+const NET_OPTS = { timeout: 20000, retries: 1 };
+
+async function apiFetch(action, params, opts) {
+  const timeoutMs = (opts && opts.timeout) || 0;
+  const retries   = (opts && opts.retries) || 0;
+  let lastErr;
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    const ctrl  = timeoutMs ? new AbortController() : null;
+    const timer = ctrl ? setTimeout(() => ctrl.abort(), timeoutMs) : null;
+    try {
+      const res = await fetch(apiUrl(action, params), ctrl ? { signal: ctrl.signal } : undefined);
+      if (!res.ok) {
+        const err = new Error(res.status === 404
+          ? 'URL not found (404) — check Apps Script URL in Config'
+          : 'HTTP ' + res.status + ' from server');
+        if (res.status === 404) err.noRetry = true;
+        throw err;
+      }
+      const json = await res.json();
+      if (json.error) { const err = new Error(json.error); err.noRetry = true; throw err; }
+      return json;
+    } catch (e) {
+      lastErr = (e && e.name === 'AbortError') ? new Error('Request timed out') : e;
+      if (lastErr.noRetry) break;
+    } finally {
+      if (timer) clearTimeout(timer);
+    }
+    if (attempt < retries) await new Promise(r => setTimeout(r, 800));
   }
-  const json = await res.json();
-  if (json.error) throw new Error(json.error);
-  return json;
+  throw lastErr;
 }
 
 async function apiSave(action, data) {
@@ -843,40 +890,75 @@ async function bootstrap() {
     return;
   }
 
-  // Step 3 — validate URL works
-  setLoadingMsg('Connecting...');
-  let urlWorks = false;
-  try {
-    const cJson = await apiFetch('config');
-    urlWorks = true;
-    if (cJson.config) mergeCloudConfig(cJson.config);
-  } catch(e) { /* URL invalid */ }
+  // Step 3 — if we have last-known stats, show Home with them right away
+  const cached = readStatsCache();
+  let showingCached = false;
+  if (cached) {
+    availableTags = cached.tags || [];
+    populateTags();
+    showScreen('home');
+    renderStats(cached.stats);
+    setSyncBar('syncing', 'Updating...');
+    showingCached = true;
+  } else {
+    setLoadingMsg('Connecting...');
+  }
 
-  if (!urlWorks) {
+  // Step 4 — config, stats and sounds are requested in parallel (one round of waiting, not three)
+  const tagUsed = cfg.activeTag;
+  const pConfig = apiFetch('config', null, NET_OPTS);
+  const pStats  = apiFetch('stats', { tag: tagUsed }, NET_OPTS);
+  setTimeout(() => _loadSoundsFromServer(), 0);   // has its own error handling
+
+  const [rConfig, rStats] = await Promise.allSettled([pConfig, pStats]);
+
+  if (rConfig.status === 'fulfilled' && rConfig.value.config) {
+    mergeCloudConfig(rConfig.value.config);
+    _decodeAll();   // GitHub owner/repo may have just arrived from the cloud config
+  }
+
+  if (rConfig.status !== 'fulfilled' && rStats.status !== 'fulfilled') {
+    if (showingCached) {
+      setSyncBar('error', '✗ Offline — showing last saved stats');
+      showToast('Cannot reach server — showing last saved stats');
+      return;
+    }
     showToast('Cannot reach server — please check your Apps Script URL in Config');
     await new Promise(r => setTimeout(r, 1500));
     showConfig();
     return;
   }
 
-  // Step 4 — check quiz sheet, generate if needed
-  setLoadingMsg('Loading...');
-  try {
-    const sJson = await apiFetch('stats', { tag: cfg.activeTag });
-    if (sJson.tags) availableTags = sJson.tags;
-    if (sJson.needsGeneration) {
-      setLoadingMsg('Setting up for first time...');
+  let sJson = rStats.status === 'fulfilled' ? rStats.value : null;
+
+  // The cloud config may have switched the active tag — fetch stats for that tag instead
+  if (sJson && cfg.activeTag !== tagUsed) {
+    try { sJson = await apiFetch('stats', { tag: cfg.activeTag }, NET_OPTS); } catch(e) { sJson = null; }
+  }
+  if (sJson && sJson.tags) availableTags = sJson.tags;
+
+  // First-time setup: quiz sheet is empty, generate it
+  if (sJson && sJson.needsGeneration) {
+    setLoadingMsg('Setting up for first time...');
+    try {
       for (let i = 0; i < 3; i++) {
         const gJson = await apiFetch('generateQuiz');
         if (gJson.ok && gJson.total > 0) { await pushConfig(); break; }
         await new Promise(r => setTimeout(r, 1500));
       }
-    }
-  } catch(e) { /* proceed to home */ }
+    } catch(e) { /* proceed to home */ }
+    sJson = null;   // stats must be re-read after generation
+  }
 
-  goHome(true); // Change 2: browser refresh always reloads stats from server
+  if (sJson && sJson.stats) {
+    statsCache = sJson.stats;
+    saveStatsCache(sJson.stats, availableTags, cfg.activeTag);
+    goHome(false);
+    setSyncBar('synced', '✓ Updated ' + new Date().toLocaleTimeString());
+  } else {
+    goHome(true);   // loads stats itself (with timeout + retry)
+  }
 }
-
 bootstrap();
 
 // ══════════════════════════════════════════════════
@@ -916,14 +998,16 @@ async function pushConfig() {
 // ══════════════════════════════════════════════════
 async function loadStats() {
   setSyncBar('syncing', 'Loading stats...');
+  const tag = cfg.activeTag;
   try {
-    const json = await apiFetch('stats', { tag: cfg.activeTag });
+    const json = await apiFetch('stats', { tag: tag }, NET_OPTS);
     if (json.tags) { availableTags = json.tags; populateTags(); }
     statsCache = json.stats; // Change 2: cache for internal navigation
+    saveStatsCache(json.stats, availableTags, tag);
     renderStats(json.stats);
     setSyncBar('synced', '✓ Updated ' + new Date().toLocaleTimeString());
   } catch(e) {
-    setSyncBar('error', '✗ Could not load stats');
+    setSyncBar('error', '✗ Could not load stats: ' + (e.message || 'unknown error'));
   }
 }
 
@@ -999,6 +1083,8 @@ function onTagChange(tag) {
     if (sel) { sel.value = tag; sel.classList.toggle('active-tag', tag !== 'all'); }
   });
   statsCache = null; // Invalidate cache — tag scope changed
+  const _c = readStatsCache();   // show this tag's last-known numbers while the fresh ones load
+  if (_c) renderStats(_c.stats);
   loadStats();
 }
 
@@ -1353,6 +1439,7 @@ async function doRefetch() {
   try {
     bar.style.width = '30%'; msg.textContent = 'Fetching latest vocab...';
     const json = await apiFetch('refetch');
+    statsCache = null; clearStatsCache();   // total / tags may have changed
     bar.style.width = '70%'; msg.textContent = 'Saving config...';
     await pushConfig();
     bar.style.width = '100%';
@@ -1364,11 +1451,24 @@ async function doRefetch() {
   }
 }
 
+async function doRecalcStats() {
+  try {
+    showToast('Recalculating...');
+    const j = await apiFetch('recalcStats', null, { timeout: 60000 });
+    if (!j.ok) throw new Error(j.error || 'failed');
+    statsCache = null; clearStatsCache();
+    showToast('Stats recalculated (' + j.rowCount + ' words)');
+  } catch(e) {
+    showToast('Recalculate failed: ' + e.message);
+  }
+}
+
 async function doResetRecords() {
   if (!confirm('Reset ALL quiz results? This cannot be undone.')) return;
   try {
     showToast('Resetting...');
     await apiFetch('resetRecords');
+    statsCache = null; clearStatsCache();
     session.day = 1; saveSession();
     localStorage.removeItem('dq_lastQuizDate');
     showToast('All records reset');
@@ -1802,7 +1902,7 @@ showConfig = function() {
 const _origGoHome = goHome;
 goHome = function(forceReload) {
   _origGoHome.apply(this, arguments);
-  if (forceReload) _loadSoundsFromServer();
+  // sounds are now requested in parallel by bootstrap() itself
 };
 
 // Patch markAnswer, nextWord, startQuiz, finishQuiz for sound playback
