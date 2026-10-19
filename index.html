@@ -578,7 +578,7 @@
   <div class="summary-body">
     <div class="summary-table-wrap">
       <table class="summary-table">
-        <thead><tr><th>POS</th><th class="col-wide">Chinese</th><th class="col-wide">English</th><th>Date</th><th>Count</th><th>Result</th><th>Count+</th></tr></thead>
+        <thead><tr><th>POS</th><th class="col-wide">Chinese</th><th class="col-wide">English</th><th>Date</th><th>Level</th><th>Result</th><th>Level+</th></tr></thead>
         <tbody id="sum-tbody"></tbody>
       </table>
     </div>
@@ -723,13 +723,13 @@ function renderSummaryRows(rows, title) {
     tbody.innerHTML = '<tr class="no-data-row"><td colspan="7">No words tested in this period</td></tr>';
   } else {
     rows.forEach(r => {
-      const countChanged = !r.wasCorrect && r.wrong > 0 && (r.wrong % 3 === 0);
+      const countChanged = !!r.levelUp; // level rose in this round
       const tr = document.createElement('tr');
       const engCell = r.example
         ? `<td><span class="has-example" data-example="${esc(r.example)}" onclick="showExamplePopup(event, this)">${esc(r.english)}</span></td>`
         : `<td>${esc(r.english)}</td>`;
       const zhClass = r.wasCorrect ? '' : ' class="result-x"';
-      tr.innerHTML = `<td>${esc(r.pos)}</td><td${zhClass}>${esc(r.chinese)}</td>${engCell}<td>${esc(r.date)}</td><td>${esc(String(r.count))}</td><td class="${r.wasCorrect?'result-v':'result-x'}">${r.wasCorrect?'✓':'✗'}</td><td class="count-change-v">${countChanged?'✓':''}</td>`;
+      tr.innerHTML = `<td>${esc(r.pos)}</td><td${zhClass}>${esc(r.chinese)}</td>${engCell}<td>${esc(r.date)}</td><td>${esc(String(r.level||0))}</td><td class="${r.wasCorrect?'result-v':'result-x'}">${r.wasCorrect?'✓':'✗'}</td><td class="count-change-v">${countChanged?'✓':''}</td>`;
       tbody.appendChild(tr);
     });
   }
@@ -1118,7 +1118,7 @@ function renderWord() {
   document.getElementById('q-chinese').textContent = cn ? (w.chinese||'—') : (w.english||'—');
   document.getElementById('q-pos').textContent     = w.pos||'—';
   document.getElementById('q-date').textContent    = w.date||'—';
-  document.getElementById('q-count').textContent   = '×' + (w.wrong||0);
+  document.getElementById('q-count').textContent   = 'Lv ' + (w.level||0);
 
   // Answer line: English text + optional "S" similar-word badge
   const answerEl = document.getElementById('q-english');
@@ -1356,7 +1356,7 @@ async function doRefetch() {
     bar.style.width = '70%'; msg.textContent = 'Saving config...';
     await pushConfig();
     bar.style.width = '100%';
-    msg.textContent = `✓ Done — ${json.total} words (${json.carried} carried, ${json.added} new)`;
+    msg.textContent = `✓ Done — ${json.total} words (${json.carried} carried` + (json.added != null ? `, ${json.added} new` : '') + ')';
     showToast('Vocab refreshed!');
   } catch(e) {
     bar.style.width = '0%';
@@ -1381,7 +1381,7 @@ async function doResetRecords() {
 // ══════════════════════════════════════════════════
 // UTILS
 // ══════════════════════════════════════════════════
-function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
 function showToast(msg) {
   const t = document.getElementById('toast');
   t.textContent = msg; t.classList.add('show');
@@ -1668,7 +1668,7 @@ function _renderSoundConfig() {
     const previewBtn = hasSound
       ? `<button class="btn-snd" onclick="_previewSound('${def.id}')">▶</button>` : '';
     const clearBtn   = hasSound
-      ? `<button class="btn-snd red" onclick="_clearSound('${def.id}')">✕</button>` : '';
+      ? `<button class="btn-snd danger" onclick="_clearSound('${def.id}')">✕</button>` : '';
 
     const item = document.createElement('div');
     item.className = 'sound-item';
@@ -1676,7 +1676,7 @@ function _renderSoundConfig() {
       <div class="sound-cat-label">${esc(def.label)} ${pendingTag}</div>
       <div class="sound-row">
         <span class="sound-desc">${esc(def.desc)}</span>
-        <span class="sound-file-lbl" title="${esc(fileLabel)}">${esc(fileLabel)}</span>
+        <span class="sound-file-label" title="${esc(fileLabel)}">${esc(fileLabel)}</span>
         ${previewBtn}${clearBtn}
         <button class="btn-snd" onclick="_triggerUpload('${def.id}')">Upload</button>
       </div>`;
@@ -1816,13 +1816,11 @@ nextWord = function() {
   const btnNext = document.getElementById('btn-next');
   if (!btnNext.classList.contains('active')) return;
   const isLast = (session.currentIdx + 1 >= session.quizWords.length);
-  playSound('next');
+  playSound(isLast ? 'finish' : 'next');  // last word: finish sound only
   if (isLast) {
     // Disable immediately so double-tap can't fire twice
     btnNext.classList.remove('active');
     btnNext.style.pointerEvents = 'none';
-    // Play the finish sound after a beat, purely cosmetic — doesn't block the report
-    setTimeout(() => playSound('finish'), 1000);
     finishQuiz();
     return;
   }
