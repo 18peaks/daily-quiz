@@ -711,8 +711,8 @@ function goHome(forceReload) {
   showScreen('home');
 
   if (!forceReload && statsCache) {
-    // Render from cache immediately — no server call needed; numbers roll up from zero
-    renderStats(statsCache, true);
+    // Render from cache immediately — no server call needed; odometer only rolls if a value changed
+    renderStats(statsCache);
     setSyncBar('idle', '');
   } else {
     loadStats();
@@ -1520,6 +1520,7 @@ function setOdo(el, text, replay) {
   }
   el.classList.add('odo');
   const prev = el.dataset.odo;
+  if (!replay && prev === text && el.querySelector('.odo-col')) return;   // unchanged: no animation
   const chars = Array.from(text);
   const reusable = !replay && prev && prev.length === text.length && el.querySelector('.odo-col') &&
     chars.every((c, i) => isDigit(c) === isDigit(prev[i]) && (isDigit(c) || c === prev[i]));
