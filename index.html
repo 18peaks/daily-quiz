@@ -262,6 +262,12 @@
   .lvl-en { font-family: var(--font-head); font-weight: 800; }
   .lvl-empty { padding: 1rem 0; text-align: center; color: var(--ink-muted); font-style: italic; font-size: 0.85rem; }
 
+  /* ── ROUND COMPLETE POPUP ── */
+  .round-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.5rem; }
+  .round-cell { border: 2px solid var(--ink); border-radius: var(--radius-md); padding: 0.55rem 0.3rem; text-align: center; }
+  .round-num  { font-family: var(--font-head); font-size: 1.2rem; font-weight: 800; line-height: 1.1; }
+  .round-lbl  { font-size: 0.58rem; font-weight: 600; color: var(--ink-muted); text-transform: uppercase; letter-spacing: 0.05em; margin-top: 0.15rem; }
+
   /* ── TOAST ── */
   .toast { position: fixed; bottom: 1.2rem; left: 50%; transform: translateX(-50%); background: var(--ink); color: #fff; padding: 0.55rem 1rem; border-radius: 99px; font-size: 0.8rem; font-weight: 600; z-index: 200; opacity: 0; pointer-events: none; transition: opacity 0.3s; white-space: nowrap; max-width: 90vw; }
   .toast.show { opacity: 1; }
@@ -603,6 +609,27 @@
   <div class="summary-footer"><button class="btn-newtest" onclick="startQuiz()">▶ New Quiz</button></div>
 </div>
 
+<!-- ══ ROUND HISTORY ══ -->
+<div id="screen-rounds" class="screen">
+  <div class="app-header">
+    <button class="btn-back" onclick="goHome()">← Home</button>
+    <div class="header-meta">
+      <span class="header-logo">ROUND HISTORY</span>
+      <span id="rnd-count" class="lime-pill">0</span>
+    </div>
+    <div style="width:48px"></div>
+  </div>
+  <div class="summary-body">
+    <div class="summary-table-wrap">
+      <table class="summary-table">
+        <thead><tr><th>Round</th><th>Tag</th><th>Finished</th><th>Days</th><th>Words</th><th>Hit rate</th><th>Level+</th><th>Max Lv</th></tr></thead>
+        <tbody id="rnd-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+  <div class="summary-footer"><button class="btn-newtest" onclick="startQuiz()">▶ New Quiz</button></div>
+</div>
+
 <!-- ══ REPORT MODAL ══ -->
 <div id="modal-report" class="modal-overlay hidden">
   <div class="modal-card">
@@ -610,6 +637,7 @@
     <div class="modal-btn-list">
       <button class="modal-btn" onclick="openReport('daily')">📅 Daily Summary</button>
       <button class="modal-btn" onclick="openReport('weekly')">🗓 Weekly Summary</button>
+      <button class="modal-btn" onclick="openReport('rounds')">🏆 Round History</button>
       <div class="modal-range-row">
         <button class="modal-btn" onclick="openReport('range')">📆 From</button>
         <input type="date" id="range-from" class="modal-date-input">
@@ -626,6 +654,17 @@
     <h3 id="lvl-title">Level+ words</h3>
     <div id="lvl-list" class="lvl-list"></div>
     <button class="btn-cancel" onclick="closeLevelWords()">Close</button>
+  </div>
+</div>
+<!-- ROUND COMPLETE -->
+<div id="modal-round" class="modal-overlay hidden">
+  <div class="modal-card">
+    <h3>🎉 Round complete!</h3>
+    <div id="round-sub" class="progress-msg" style="margin:-0.5rem 0 0.8rem"></div>
+    <div id="round-grid" class="round-grid"></div>
+    <div id="round-note" class="progress-msg" style="margin:0.85rem 0 0.9rem"></div>
+    <button id="round-go" class="btn-start" onclick="confirmNewRound()"><span class="play-circle">▶</span>START NEW ROUND</button>
+    <button class="btn-cancel" onclick="closeRoundPopup()">Not now</button>
   </div>
 </div>
 <div id="example-popup" class="example-popup"></div>
@@ -750,6 +789,8 @@ function openReport(type) {
     showDailySummary();
   } else if (type === 'weekly') {
     showWeeklySummary();
+  } else if (type === 'rounds') {
+    showRoundHistory();
   } else if (type === 'range') {
     const from = document.getElementById('range-from').value;
     const to   = document.getElementById('range-to').value;
@@ -781,6 +822,31 @@ function renderSummaryRows(rows, title) {
     });
   }
   showScreen('summary');
+}
+
+async function showRoundHistory() {
+  showScreen('loading');
+  setLoadingMsg('Loading round history...');
+  try {
+    const json = await apiFetch('roundHistory', null, NET_OPTS);
+    const rounds = json.rounds || [];
+    document.getElementById('rnd-count').textContent = rounds.length;
+    const tbody = document.getElementById('rnd-tbody');
+    tbody.innerHTML = '';
+    if (rounds.length === 0) {
+      tbody.innerHTML = '<tr class="no-data-row"><td colspan="8">No rounds finished yet</td></tr>';
+    } else {
+      rounds.forEach(r => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td>${esc(String(r.round))}</td><td>${esc(r.tag === 'all' ? 'All' : r.tag)}</td><td>${esc(r.finishDate)}</td><td>${esc(String(r.days))}</td><td>${esc(String(r.words))}</td><td>${Number(r.hitRate).toFixed(2)}%</td><td>${esc(String(r.levelPlus))}</td><td>${esc(String(r.maxLevel))}</td>`;
+        tbody.appendChild(tr);
+      });
+    }
+    showScreen('rounds');
+  } catch(e) {
+    showToast('Could not load round history: ' + e.message);
+    goHome();
+  }
 }
 
 async function showDailySummary() {
@@ -1183,10 +1249,10 @@ async function startQuiz() {
     }
 
     if (json.allTested) {
-      setLoadingMsg('All words tested! Reshuffling...');
-      showToast('All words tested — starting fresh!');
-      await apiFetch('generateQuiz');
-      return startQuiz();
+      // Every word in this tag has been tested: ask before logging the round and resetting
+      goHome();
+      showRoundPopup(json);
+      return;
     }
 
     if (!json.words || json.words.length === 0) {
@@ -1552,6 +1618,55 @@ function setOdo(el, text, replay) {
 // ══════════════════════════════════════════════════
 // LEVEL+ WORD LIST (bottom sheet, fetched only on tap)
 // ══════════════════════════════════════════════════
+function showRoundPopup(json) {
+  const rs  = json.roundStats || statsCache || {};
+  const tag = cfg.activeTag || 'all';
+  const exact = rs.hitRateExact !== undefined ? Number(rs.hitRateExact) : Number(rs.hitRate || 0);
+  const cells = [
+    [rs.days || 0,                    'Days'],
+    [rs.total || json.total || 0,     'Words'],
+    [exact.toFixed(2) + '%',          'Hit rate'],
+    [rs.countPlus || 0,               'Level+ words'],
+    [rs.maxLevel || 0,                'Hardest level']
+  ];
+  document.getElementById('round-grid').innerHTML = cells.map(c =>
+    `<div class="round-cell"><div class="round-num">${esc(String(c[0]))}</div><div class="round-lbl">${esc(c[1])}</div></div>`).join('');
+  document.getElementById('round-sub').textContent = 'Round ' + (json.roundNo || 1) + ' · ' + (tag === 'all' ? 'All tags' : tag);
+  document.getElementById('round-note').textContent = tag === 'all'
+    ? 'Starting a new round reshuffles all words and resets every word\'s stats and level. This round is saved to Round History first.'
+    : 'Starting a new round reshuffles the "' + tag + '" words and resets their stats and levels. Other tags are not affected. This round is saved to Round History first.';
+  document.getElementById('modal-round').classList.remove('hidden');
+}
+function closeRoundPopup() { document.getElementById('modal-round').classList.add('hidden'); }
+
+async function confirmNewRound() {
+  const btn = document.getElementById('round-go');
+  if (btn.disabled) return;
+  btn.disabled = true;
+  playSound('start');
+  const tag = cfg.activeTag || 'all';
+  closeRoundPopup();
+  showScreen('loading');
+  setLoadingMsg('Saving round & reshuffling...');
+  try {
+    if (pendingSave) { try { await pendingSave; } catch(e) {} }
+    const j = await apiFetch('startNewRound', { tag: tag });   // changes data: no timeout, no retry
+    if (!j.ok) throw new Error(j.error || 'Could not start new round');
+    statsCache = null; clearStatsCache();
+    if (tag === 'all') {
+      session.day = 1; saveSession();
+      localStorage.removeItem('dq_lastQuizDate');
+    }
+    showToast('Round ' + j.round + ' saved — new round started');
+    btn.disabled = false;
+    return _origStartQuiz();
+  } catch(e) {
+    btn.disabled = false;
+    showToast('Could not start new round: ' + e.message);
+    goHome(true);
+  }
+}
+
 function closeLevelWords() { document.getElementById('modal-levels').classList.add('hidden'); }
 async function openLevelWords() {
   playSound('system');
@@ -1972,7 +2087,7 @@ function _instrumentButtons() {
   [
     '#screen-home .icon-btn', '#screen-main .icon-btn',
     '#screen-config .btn-back', '#screen-config .btn-danger',
-    '#screen-report .btn-back', '#screen-summary .btn-back',
+    '#screen-report .btn-back', '#screen-summary .btn-back', '#screen-rounds .btn-back',
     '.btn-cancel', '.modal-btn', '.btn-primary', '.header-logo-link',
   ].forEach(sel => document.querySelectorAll(sel).forEach(el => {
     if (el._sndOk) return; el._sndOk = true;
