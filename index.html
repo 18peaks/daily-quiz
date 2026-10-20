@@ -246,6 +246,22 @@
   .btn-cancel { margin-top: 0.65rem; width: 100%; padding: 0.62rem; border: 2px solid var(--border-soft); border-radius: var(--radius-sm); background: transparent; color: var(--ink-muted); font-size: 0.85rem; font-family: var(--font-body); cursor: pointer; font-weight: 600; }
   .btn-cancel:hover { border-color: var(--ink); color: var(--ink); }
 
+  /* ── ODOMETER ── */
+  .odo { display: inline-flex; align-items: flex-start; font-variant-numeric: tabular-nums; }
+  .odo-col { display: inline-block; height: 1em; line-height: 1; overflow: hidden; }
+  .odo-strip { display: flex; flex-direction: column; transition: transform 0.9s cubic-bezier(0.16, 1, 0.3, 1); }
+  .odo-strip > span { display: block; height: 1em; line-height: 1; }
+  .odo-ch { display: inline-block; height: 1em; line-height: 1; }
+  @media (prefers-reduced-motion: reduce) { .odo-strip { transition: none; } }
+  #home-hit-wrap { cursor: pointer; }
+  .home-count-box { cursor: pointer; }
+
+  /* ── LEVEL+ LIST ── */
+  .lvl-list { max-height: 55vh; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+  .lvl-row { display: grid; grid-template-columns: 1fr 1fr auto; gap: 0.5rem; align-items: center; padding: 0.5rem 0; border-bottom: 1px solid var(--border-soft); font-size: 0.85rem; }
+  .lvl-en { font-family: var(--font-head); font-weight: 800; }
+  .lvl-empty { padding: 1rem 0; text-align: center; color: var(--ink-muted); font-style: italic; font-size: 0.85rem; }
+
   /* ── TOAST ── */
   .toast { position: fixed; bottom: 1.2rem; left: 50%; transform: translateX(-50%); background: var(--ink); color: #fff; padding: 0.55rem 1rem; border-radius: 99px; font-size: 0.8rem; font-weight: 600; z-index: 200; opacity: 0; pointer-events: none; transition: opacity 0.3s; white-space: nowrap; max-width: 90vw; }
   .toast.show { opacity: 1; }
@@ -380,7 +396,7 @@
     <div class="home-hero" id="home-hero-card">
       <div>
         <div class="home-hero-eyebrow">Hit Rate · All Time</div>
-        <div class="home-hero-big"><span id="home-hit-rate">—</span></div>
+        <div class="home-hero-big" id="home-hit-wrap" data-example="" onclick="showExamplePopup(event, this)"><span id="home-hit-rate">—</span></div>
         <div class="home-hero-sub">overall accuracy</div>
       </div>
       <div class="home-hero-right">
@@ -413,11 +429,11 @@
         <div id="home-wrong" class="home-stat-num home-stat-red">—</div>
         <div class="home-stat-lbl"><span class="ic-r">✗</span> Wrong</div>
       </div>
-      <div class="home-count-box">
+      <div class="home-count-box" onclick="openLevelWords()">
         <div class="home-count-left">
           <div id="home-count-plus" class="home-count-num">—</div>
-          <div class="home-count-lbl">⚠ Count+ escalations</div>
-          <div class="home-count-sub">words with 3+ wrong answers</div>
+          <div class="home-count-lbl">⚠ Level+</div>
+          <div class="home-count-sub">words at level 1 or higher · tap for list</div>
         </div>
         <div class="home-count-icon">🔺</div>
       </div>
@@ -604,6 +620,14 @@
     <button class="btn-cancel" onclick="closeReportModal()">Cancel</button>
   </div>
 </div>
+<!-- LEVEL+ WORD LIST -->
+<div id="modal-levels" class="modal-overlay hidden" onclick="if(event.target===this)closeLevelWords()">
+  <div class="modal-card">
+    <h3 id="lvl-title">Level+ words</h3>
+    <div id="lvl-list" class="lvl-list"></div>
+    <button class="btn-cancel" onclick="closeLevelWords()">Close</button>
+  </div>
+</div>
 <div id="example-popup" class="example-popup"></div>
 <div id="toast" class="toast"></div>
 
@@ -632,6 +656,7 @@ let availableTags = []; // populated from server
 let vocabByNo = {};     // "1"-based index → vocab row (for similar word lookup)
 
 // ── Stats cache (Change 2: avoid redundant server calls on internal navigation) ──
+let pendingSave = null; // promise of the in-flight saveResults call (stats / next quiz wait for it)
 let statsCache = null;  // null = not yet loaded; populated after first load
 
 function loadLocal() {
@@ -683,13 +708,11 @@ function interruptQuiz() {
 function goHome(forceReload) {
   stopTimers();
   populateTags();
-  document.getElementById('home-day').textContent = 'Day ' + session.day;
-  document.getElementById('main-day').textContent  = 'Day ' + session.day;
   showScreen('home');
 
   if (!forceReload && statsCache) {
-    // Render from cache immediately — no server call needed
-    renderStats(statsCache);
+    // Render from cache immediately — no server call needed; numbers roll up from zero
+    renderStats(statsCache, true);
     setSyncBar('idle', '');
   } else {
     loadStats();
@@ -997,7 +1020,8 @@ async function pushConfig() {
 // HOME STATS
 // ══════════════════════════════════════════════════
 async function loadStats() {
-  setSyncBar('syncing', 'Loading stats...');
+  setSyncBar('syncing', pendingSave ? 'Saving results...' : 'Loading stats...');
+  if (pendingSave) { try { await pendingSave; } catch(e) {} setSyncBar('syncing', 'Loading stats...'); }
   const tag = cfg.activeTag;
   try {
     const json = await apiFetch('stats', { tag: tag }, NET_OPTS);
@@ -1011,7 +1035,7 @@ async function loadStats() {
   }
 }
 
-function renderStats(stats) {
+function renderStats(stats, replay) {
   const heroCard = document.getElementById('home-hero-card');
   const progWrap = document.getElementById('home-prog-wrap');
   const statGrid = document.getElementById('home-stat-grid');
@@ -1031,19 +1055,22 @@ function renderStats(stats) {
   noData.classList.add('hidden');
 
   const pctNum = stats.total > 0 ? (stats.tested / stats.total * 100) : 0;
-  document.getElementById('home-hit-rate').textContent   = stats.hitRate + '%';
-  document.getElementById('home-days').textContent       = stats.days;
-  document.getElementById('home-tested').textContent     = stats.tested;
-  document.getElementById('home-total').textContent      = '/' + stats.total;
-  document.getElementById('home-pct').textContent        = pctNum.toFixed(1) + '%';
-  document.getElementById('home-correct').textContent    = stats.correct;
-  document.getElementById('home-wrong').textContent      = stats.wrong;
-  document.getElementById('home-count-plus').textContent = stats.countPlus;
+  const att   = (stats.correct || 0) + (stats.wrong || 0);
+  const exact = (stats.hitRateExact !== undefined) ? Number(stats.hitRateExact) : (att > 0 ? stats.correct / att * 100 : 0);
+  const tip   = exact.toFixed(2) + '% (' + (stats.correct || 0) + ' of ' + att + ' answers)';
+  const hitWrap = document.getElementById('home-hit-wrap');
+  hitWrap.setAttribute('data-example', 'Hit rate ' + tip);   // tap popup (touch)
+  hitWrap.title = 'Hit rate ' + tip;                          // hover tooltip (desktop)
+  setOdo(document.getElementById('home-hit-rate'), stats.hitRate + '%', replay);
+  setOdo(document.getElementById('home-days'),     stats.days, replay);
+  setOdo(document.getElementById('home-tested'),   stats.tested, replay);
+  setOdo(document.getElementById('home-total'),    '/' + stats.total, replay);
+  setOdo(document.getElementById('home-pct'),      pctNum.toFixed(1) + '%', replay);
+  setOdo(document.getElementById('home-correct'),  stats.correct, replay);
+  setOdo(document.getElementById('home-wrong'),    stats.wrong, replay);
+  setOdo(document.getElementById('home-count-plus'), stats.countPlus, replay);
   document.getElementById('home-progress-fill').style.width = Math.min(pctNum, 100) + '%';
-  // Sync Day badge with authoritative cloud value
-  const dayLabel = 'Day ' + (stats.days || 0);
-  document.getElementById('home-day').textContent = dayLabel;
-  document.getElementById('main-day').textContent  = dayLabel;
+  setOdo(document.getElementById('home-day'), 'Day ' + (stats.days || 0), replay);
   session.day = stats.days || 0;
 }
 
@@ -1138,6 +1165,7 @@ async function startQuiz() {
 
   showScreen('loading');
   setLoadingMsg('Fetching words...');
+  if (pendingSave) { setLoadingMsg('Saving previous results...'); try { await pendingSave; } catch(e) {} setLoadingMsg('Fetching words...'); }
 
   try {
     const json = await apiFetch('quizWords', {
@@ -1189,6 +1217,7 @@ async function startQuiz() {
     startTimer();
     startTimeoutTimer();
     showScreen('main');
+    setOdo(document.getElementById('main-day'), 'Day ' + session.day);   // rolls when the day number changed
 
   } catch(e) {
     showToast('Error: ' + e.message);
@@ -1346,13 +1375,14 @@ function finishQuiz() {
   showQuizReport(); // show immediately — don't make the user wait on the network
 
   // Save results to cloud in the background; report is already on screen either way
-  apiSave('saveResults', session.results.map(r => ({
+  const _p = pendingSave = apiSave('saveResults', session.results.map(r => ({
     rowNum:     r.rowNum,
     english:    r.english,
     wasCorrect: r.wasCorrect
   }))).catch(e => {
     showToast('Warning: results may not have saved: ' + e.message);
   });
+  _p.finally(() => { if (pendingSave === _p) pendingSave = null; });
 }
 
 function showQuizReport() {
@@ -1372,7 +1402,6 @@ function showQuizReport() {
 }
 
 function updateQuizHeader() {
-  document.getElementById('main-day').textContent = 'Day ' + session.day;
   const cur = Math.min(session.currentIdx+1, session.quizWords.length);
   const tot = session.quizWords.length;
   document.getElementById('main-progress').textContent = String(cur).padStart(2,'0') + '/' + String(tot).padStart(2,'0');
@@ -1475,6 +1504,72 @@ async function doResetRecords() {
     setTimeout(() => goHome(), 500);
   } catch(e) {
     showToast('Reset failed: ' + e.message);
+  }
+}
+
+// ══════════════════════════════════════════════════
+// ODOMETER — rolling digits. Keeps old digits and rolls to the new value;
+// replay=true restarts from zero. Honors prefers-reduced-motion.
+// ══════════════════════════════════════════════════
+function setOdo(el, text, replay) {
+  if (!el) return;
+  text = String(text);
+  const isDigit = c => c >= '0' && c <= '9';
+  if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    el.classList.remove('odo'); el.textContent = text; el.dataset.odo = ''; return;
+  }
+  el.classList.add('odo');
+  const prev = el.dataset.odo;
+  const chars = Array.from(text);
+  const reusable = !replay && prev && prev.length === text.length && el.querySelector('.odo-col') &&
+    chars.every((c, i) => isDigit(c) === isDigit(prev[i]) && (isDigit(c) || c === prev[i]));
+  if (!reusable) {
+    el.textContent = '';
+    chars.forEach(c => {
+      if (isDigit(c)) {
+        const col = document.createElement('span'); col.className = 'odo-col';
+        const strip = document.createElement('span'); strip.className = 'odo-strip';
+        for (let d = 0; d < 10; d++) { const s = document.createElement('span'); s.textContent = d; strip.appendChild(s); }
+        col.appendChild(strip); el.appendChild(col);
+      } else {
+        const ch = document.createElement('span'); ch.className = 'odo-ch';
+        ch.textContent = c === ' ' ? '\u00a0' : c; el.appendChild(ch);
+      }
+    });
+    void el.offsetWidth;   // flush so the roll animates from the starting position
+  }
+  el.dataset.odo = text;
+  el.setAttribute('aria-label', text);
+  const strips = el.querySelectorAll('.odo-strip');
+  const digits = chars.filter(isDigit);
+  strips.forEach((s, i) => {
+    s.style.transitionDelay = ((strips.length - 1 - i) * 60) + 'ms';
+    s.style.transform = 'translateY(-' + digits[i] + 'em)';
+  });
+}
+
+// ══════════════════════════════════════════════════
+// LEVEL+ WORD LIST (bottom sheet, fetched only on tap)
+// ══════════════════════════════════════════════════
+function closeLevelWords() { document.getElementById('modal-levels').classList.add('hidden'); }
+async function openLevelWords() {
+  playSound('system');
+  const list  = document.getElementById('lvl-list');
+  const title = document.getElementById('lvl-title');
+  const scope = cfg.activeTag && cfg.activeTag !== 'all' ? ' · ' + cfg.activeTag : '';
+  title.textContent = 'Level+ words' + scope;
+  list.innerHTML = '<div class="lvl-empty">Loading...</div>';
+  document.getElementById('modal-levels').classList.remove('hidden');
+  try {
+    if (pendingSave) { try { await pendingSave; } catch(e) {} }
+    const j = await apiFetch('levelWords', { tag: cfg.activeTag }, NET_OPTS);
+    const w = j.words || [];
+    title.textContent = 'Level+ words' + scope + ' (' + w.length + ')';
+    list.innerHTML = w.length
+      ? w.map(x => `<div class="lvl-row"><span class="lvl-en">${esc(x.english)}</span><span>${esc(x.chinese)}</span><span class="lime-pill">Lv ${esc(String(x.level))}</span></div>`).join('')
+      : '<div class="lvl-empty">No words at level 1 or higher yet</div>';
+  } catch(e) {
+    list.innerHTML = '<div class="lvl-empty">Could not load: ' + esc(e.message) + '</div>';
   }
 }
 
