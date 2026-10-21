@@ -415,7 +415,7 @@
           <div class="home-hero-stat-num">
             <span id="home-tested">—</span><span id="home-total" class="home-hero-stat-frac">/—</span>
           </div>
-          <div class="home-hero-stat-lbl">Tested / Total</div>
+          <div class="home-hero-stat-lbl">Done / Total</div>
         </div>
       </div>
     </div>
@@ -1120,7 +1120,8 @@ function renderStats(stats, replay) {
   statGrid.classList.remove('hidden');
   noData.classList.add('hidden');
 
-  const pctNum = stats.total > 0 ? (stats.tested / stats.total * 100) : 0;
+  const done   = (stats.done !== undefined) ? stats.done : stats.tested;   // falls back for old cached stats
+  const pctNum = stats.total > 0 ? (done / stats.total * 100) : 0;
   const att   = (stats.correct || 0) + (stats.wrong || 0);
   const exact = (stats.hitRateExact !== undefined) ? Number(stats.hitRateExact) : (att > 0 ? stats.correct / att * 100 : 0);
   const tip   = exact.toFixed(2) + '% (' + (stats.correct || 0) + ' of ' + att + ' answers)';
@@ -1129,7 +1130,7 @@ function renderStats(stats, replay) {
   hitWrap.title = 'Hit rate ' + tip;                          // hover tooltip (desktop)
   setOdo(document.getElementById('home-hit-rate'), stats.hitRate + '%', replay);
   setOdo(document.getElementById('home-days'),     stats.days, replay);
-  setOdo(document.getElementById('home-tested'),   stats.tested, replay);
+  setOdo(document.getElementById('home-tested'),   done, replay);
   setOdo(document.getElementById('home-total'),    '/' + stats.total, replay);
   setOdo(document.getElementById('home-pct'),      pctNum.toFixed(1) + '%', replay);
   setOdo(document.getElementById('home-correct'),  stats.correct, replay);
