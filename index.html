@@ -1588,6 +1588,9 @@ function setOdo(el, text, replay) {
   el.classList.add('odo');
   const prev = el.dataset.odo;
   if (!replay && prev === text && el.querySelector('.odo-col')) return;   // unchanged: no animation
+  // An animation will run: play the "Stats Change" sound once per batch. Deferred with setTimeout so the
+  // many setOdo() calls of one renderStats() give a single sound, and so it never runs before the sound system is initialised.
+  if (!setOdo._snd) setOdo._snd = setTimeout(function() { setOdo._snd = 0; playSound('stats'); }, 0);
   const chars = Array.from(text);
   const reusable = !replay && prev && prev.length === text.length && el.querySelector('.odo-col') &&
     chars.every((c, i) => isDigit(c) === isDigit(prev[i]) && (isDigit(c) || c === prev[i]));
@@ -1749,6 +1752,7 @@ const SOUND_DEFS = [
   { id: 'wrong',   label: '✗ Wrong',          desc: 'X button in Quiz' },
   { id: 'next',    label: 'Next →',           desc: 'Next button in Quiz' },
   { id: 'finish',  label: 'Quiz Finish',      desc: 'Played before showing final result' },
+  { id: 'stats',   label: 'Stats Change',     desc: 'Plays with the odometer roll when stats change' },
 ];
 
 let _soundMuted    = localStorage.getItem(LS_SOUND_MUTE) === 'true';
@@ -2100,6 +2104,20 @@ function _instrumentButtons() {
 _updateSoundBtns();
 _loadSoundsFromCache();  // immediate from LS; server refresh called after bootstrap
 setTimeout(_instrumentButtons, 0);
+
+// The "Stats Change" sound is triggered by data loading, not by a tap. iOS only lets an <audio> element
+// play without a tap after it has been played once from a tap, so silently unlock it on the first touch/click.
+function _unlockStatsSound() {
+  const el = _audioEls['stats'];
+  if (!el || el._unlocked || !el.src) return;
+  el._unlocked = true;
+  el.muted = true;
+  const p = el.play();
+  const done = () => { try { el.pause(); el.currentTime = 0; } catch(e) {} el.muted = false; };
+  if (p && p.then) p.then(done).catch(() => { el.muted = false; el._unlocked = false; });
+  else done();
+}
+['touchend', 'click'].forEach(ev => document.addEventListener(ev, _unlockStatsSound, { capture: true, passive: true }));
 
 // Patch showConfig to reset pending and render sound UI
 const _origShowConfig = showConfig;
