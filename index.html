@@ -1138,6 +1138,7 @@ function renderStats(stats, replay) {
   setOdo(document.getElementById('home-count-plus'), stats.countPlus, replay);
   document.getElementById('home-progress-fill').style.width = Math.min(pctNum, 100) + '%';
   setOdo(document.getElementById('home-day'), 'Day ' + (stats.days || 0), replay);
+  setOdo(document.getElementById('main-day'), 'Day ' + (stats.days || 0), replay);   // quiz-screen pill follows Home, so starting a quiz never rolls it
   session.day = stats.days || 0;
 }
 
