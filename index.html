@@ -113,7 +113,7 @@
   .home-prog-lbl    { font-size: 0.6rem; font-weight: 600; color: var(--ink-muted); text-transform: uppercase; letter-spacing: 0.06em; }
   .home-prog-val    { font-size: 0.6rem; font-weight: 700; color: var(--ink); }
   .prog-bg   { width: 100%; height: 5px; background: var(--bg-off); border-radius: 99px; overflow: hidden; }
-  .prog-fill { height: 100%; width: 0%; background: var(--ink); border-radius: 99px; transition: width 0.6s ease; }
+  .prog-fill { height: 100%; width: 0%; background: #00FFFF; border-radius: 99px; transition: width 0.6s ease; }
 
   .home-stat-grid  { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; }
   .home-stat-box   { border: 2px solid var(--ink); border-radius: var(--radius-md); padding: 0.7rem 0.75rem 0.6rem; display: flex; flex-direction: column; gap: 0.1rem; }
@@ -271,6 +271,17 @@
   .round-num  { font-family: var(--font-head); font-size: 1.2rem; font-weight: 800; line-height: 1.1; }
   .round-lbl  { font-size: 0.58rem; font-weight: 600; color: var(--ink-muted); text-transform: uppercase; letter-spacing: 0.05em; margin-top: 0.15rem; }
 
+  /* ── ATTEMPTS PIE ── */
+  .tries-btn { display: flex; align-items: center; gap: 0.4rem; margin-top: 0.3rem; padding: 0; background: none; border: none; cursor: pointer; font-family: var(--font-body); font-size: 0.72rem; font-weight: 600; color: #999; }
+  .tries-btn:hover { color: #fff; }
+  .pie-ic { display: inline-flex; flex-shrink: 0; }
+  .pie-ic svg { display: block; }
+  .pie-btn { width: 48px; display: flex; justify-content: flex-end; align-items: center; padding: 0; background: none; border: none; cursor: pointer; }
+  .tries-cell { display: inline-flex; vertical-align: middle; padding: 0.1rem; background: none; border: none; cursor: pointer; }
+  .tries-head { display: flex; justify-content: space-between; align-items: baseline; gap: 0.5rem; }
+  .tries-head h3 { margin-bottom: 0.2rem; }
+  .tries-head span { font-size: 0.72rem; color: var(--ink-muted); text-align: right; }
+
   /* ── TOAST ── */
   .toast { position: fixed; bottom: 1.2rem; left: 50%; transform: translateX(-50%); background: var(--ink); color: #fff; padding: 0.55rem 1rem; border-radius: 99px; font-size: 0.8rem; font-weight: 600; z-index: 200; opacity: 0; pointer-events: none; transition: opacity 0.3s; white-space: nowrap; max-width: 90vw; }
   .toast.show { opacity: 1; }
@@ -406,7 +417,7 @@
       <div>
         <div class="home-hero-eyebrow">Hit Rate · All Time</div>
         <div class="home-hero-big" id="home-hit-wrap" data-example="" onclick="showExamplePopup(event, this)"><span id="home-hit-rate">—</span></div>
-        <div class="home-hero-sub">overall accuracy</div>
+        <button id="home-tries-btn" class="tries-btn" onclick="showHomeTries()" aria-label="Tries to Correct"><span id="home-pie" class="pie-ic"></span><span>Tries to Correct</span></button>
       </div>
       <div class="home-hero-right">
         <div class="home-hero-stat">
@@ -598,7 +609,7 @@
       <span id="sum-title" class="header-logo">DAILY SUMMARY</span>
       <span id="sum-score" class="lime-pill">0/0</span>
     </div>
-    <div style="width:48px"></div>
+    <button id="sum-pie" class="pie-btn hidden" onclick="showReportTries()" aria-label="Tries to Correct"></button>
   </div>
   <div class="summary-body">
     <div class="summary-table-wrap">
@@ -623,7 +634,7 @@
   <div class="summary-body">
     <div class="summary-table-wrap">
       <table class="summary-table">
-        <thead><tr><th>Round</th><th>Tag</th><th>Finished</th><th>Days</th><th>Words</th><th>Hit rate</th><th>Level+</th><th>Max Lv</th></tr></thead>
+        <thead><tr><th>Round</th><th>Tag</th><th>Finished</th><th>Days</th><th>Words</th><th>Hit rate</th><th>Level+</th><th>Max Lv</th><th class="col-narrow">Tries</th></tr></thead>
         <tbody id="rnd-tbody"></tbody>
       </table>
     </div>
@@ -667,6 +678,14 @@
     <button class="btn-cancel" onclick="closeRoundPopup()">Not now</button>
   </div>
 </div>
+<!-- ATTEMPTS POPUP -->
+<div id="modal-tries" class="modal-overlay hidden" onclick="if(event.target===this)closeTriesPopup()">
+  <div class="modal-card">
+    <div class="tries-head"><h3>Attempts</h3><span id="tries-sub"></span></div>
+    <div id="tries-pie"></div>
+    <button class="btn-cancel" onclick="closeTriesPopup()">Close</button>
+  </div>
+</div>
 <div id="example-popup" class="example-popup"></div>
 <div id="toast" class="toast"></div>
 
@@ -692,6 +711,88 @@ let session = {
 };
 let vocabCache = {};    // english → full word object (for display only)
 let availableTags = []; // populated from server
+// ── Attempts pie (Tries to Correct) ──
+const TRY_COL   = ['#2fb344', '#3b82f6', '#f59f00', '#e03131'];
+const TRY_NAMES = ['Nailed it', '2 tries', '3 tries', '4+ tries'];
+let homeTries = null, reportTries = null, reportScope = '', roundRowsCache = [];
+
+function triesTotal(t) { return t ? t.reduce((a, b) => a + (Number(b) || 0), 0) : 0; }
+// Report pages: words in the report that ended up correct, grouped by their wrong count
+function triesFromRows(rows) {
+  const t = [0, 0, 0, 0];
+  rows.forEach(r => { if (r.wasCorrect) t[Math.min(Number(r.wrong) || 0, 3)]++; });
+  return t;
+}
+function piePt(cx, cy, r, a) { return [cx + r * Math.sin(a), cy - r * Math.cos(a)]; }
+function pieSlices(t, cx, cy, R, bg, sw) {
+  const total = triesTotal(t);
+  let a0 = 0, svg = '';
+  const info = [];
+  const stroke = bg ? ` stroke="${bg}" stroke-width="${sw}" stroke-linejoin="round"` : '';
+  t.forEach((n, i) => {
+    n = Number(n) || 0;
+    if (!n) return;
+    const a1 = a0 + n / total * 2 * Math.PI;
+    if (n === total) {
+      svg += `<circle cx="${cx}" cy="${cy}" r="${R}" fill="${TRY_COL[i]}"${stroke}/>`;
+    } else {
+      const p0 = piePt(cx, cy, R, a0), p1 = piePt(cx, cy, R, a1);
+      svg += `<path d="M${cx} ${cy} L${p0[0].toFixed(2)} ${p0[1].toFixed(2)} A${R} ${R} 0 ${(a1 - a0) > Math.PI ? 1 : 0} 1 ${p1[0].toFixed(2)} ${p1[1].toFixed(2)} Z" fill="${TRY_COL[i]}"${stroke}/>`;
+    }
+    info.push({ i, n, f: n / total, mid: (a0 + a1) / 2 });
+    a0 = a1;
+  });
+  return { svg, info };
+}
+function pieIconSvg(t, size, bg) {
+  const body = triesTotal(t) ? pieSlices(t, 50, 50, 48, bg, 2).svg : '<circle cx="50" cy="50" r="46" fill="#ddd"/>';
+  return `<svg width="${size}" height="${size}" viewBox="0 0 100 100" role="img" aria-label="Tries to Correct">${body}</svg>`;
+}
+// Big pie for the popup: caption inside the slice when it fits, otherwise a leader line to a label beside the pie
+function triesPieSvg(t) {
+  const cx = 180, cy = 168, R = 80, total = triesTotal(t);
+  const pct = n => (n / total * 100).toFixed(1) + '%';
+  const sl = pieSlices(t, cx, cy, R, '#ffffff', 1.5);
+  let s = sl.svg;
+  const used = { '-1': [], '1': [] };
+  const clash = (side, y) => used[side].some(v => Math.abs(v - y) < 36);
+  sl.info.forEach(o => {
+    if (o.f >= 0.22) {
+      const p = o.f > 0.999 ? [cx, cy] : piePt(cx, cy, R * 0.56, o.mid);
+      s += `<text x="${p[0].toFixed(1)}" y="${(p[1] - 2).toFixed(1)}" text-anchor="middle" font-size="13" font-weight="600" fill="#fff">${TRY_NAMES[o.i]}</text>` +
+           `<text x="${p[0].toFixed(1)}" y="${(p[1] + 14).toFixed(1)}" text-anchor="middle" font-size="12" fill="#fff">${o.n} · ${pct(o.n)}</text>`;
+      return;
+    }
+    let side = Math.sin(o.mid) >= 0 ? 1 : -1;
+    const edge = piePt(cx, cy, R, o.mid), elbow = piePt(cx, cy, R + 10, o.mid);
+    let y = Math.max(26, Math.min(elbow[1], 256));
+    if (clash(side, y)) {
+      if (!clash(-side, y)) side = -side;
+      else { let k = 0; while (clash(side, y) && k++ < 6) y = Math.min(y + 36, 262); }
+    }
+    used[side].push(y);
+    const lx = cx + side * (R + 16), anchor = side > 0 ? 'start' : 'end';
+    s += `<polyline points="${edge[0].toFixed(1)},${edge[1].toFixed(1)} ${elbow[0].toFixed(1)},${elbow[1].toFixed(1)} ${lx - side * 4},${(y - 4).toFixed(1)}" fill="none" stroke="${TRY_COL[o.i]}" stroke-width="1.5"/>` +
+         `<text x="${lx}" y="${y.toFixed(1)}" text-anchor="${anchor}" font-size="13" font-weight="600" fill="#1a1a1a">${TRY_NAMES[o.i]}</text>` +
+         `<text x="${lx}" y="${(y + 16).toFixed(1)}" text-anchor="${anchor}" font-size="12" fill="#666">${o.n} · ${pct(o.n)}</text>`;
+  });
+  return `<svg width="100%" style="max-width:360px" viewBox="0 0 360 280" role="img" aria-label="Attempts pie chart">${s}</svg>`;
+}
+function showTriesPopup(t, scope) {
+  playSound('system');
+  const total = triesTotal(t);
+  document.getElementById('tries-sub').textContent = scope + ' · ' + total + ' words';
+  document.getElementById('tries-pie').innerHTML = total ? triesPieSvg(t) : '<div class="lvl-empty">No correct answers yet</div>';
+  document.getElementById('modal-tries').classList.remove('hidden');
+}
+function closeTriesPopup() { document.getElementById('modal-tries').classList.add('hidden'); }
+function showHomeTries()   { showTriesPopup(homeTries, cfg.activeTag && cfg.activeTag !== 'all' ? cfg.activeTag : 'All tags'); }
+function showReportTries() { showTriesPopup(reportTries, reportScope); }
+function showRoundTries(i) {
+  const r = roundRowsCache[i];
+  if (r) showTriesPopup(r.tries, 'Round ' + r.round + ' · ' + (r.tag === 'all' ? 'All tags' : r.tag));
+}
+
 let vocabByNo = {};     // "1"-based index → vocab row (for similar word lookup)
 
 // ── Stats cache (Change 2: avoid redundant server calls on internal navigation) ──
@@ -805,6 +906,11 @@ function renderSummaryRows(rows, title) {
   const correct = rows.filter(r => r.wasCorrect).length;
   document.getElementById('sum-title').textContent  = title;
   document.getElementById('sum-score').textContent  = correct + '/' + rows.length;
+  reportTries = triesFromRows(rows);
+  reportScope = title.charAt(0) + title.slice(1).toLowerCase();
+  const pieBtn = document.getElementById('sum-pie');
+  pieBtn.innerHTML = pieIconSvg(reportTries, 24, '#ffffff');
+  pieBtn.classList.toggle('hidden', triesTotal(reportTries) === 0);
   const tbody = document.getElementById('sum-tbody');
   tbody.innerHTML = '';
   if (rows.length === 0) {
@@ -834,11 +940,12 @@ async function showRoundHistory() {
     const tbody = document.getElementById('rnd-tbody');
     tbody.innerHTML = '';
     if (rounds.length === 0) {
-      tbody.innerHTML = '<tr class="no-data-row"><td colspan="8">No rounds finished yet</td></tr>';
+      tbody.innerHTML = '<tr class="no-data-row"><td colspan="9">No rounds finished yet</td></tr>';
     } else {
-      rounds.forEach(r => {
+      roundRowsCache = rounds;
+      rounds.forEach((r, idx) => {
         const tr = document.createElement('tr');
-        tr.innerHTML = `<td>${esc(String(r.round))}</td><td>${esc(r.tag === 'all' ? 'All' : r.tag)}</td><td>${esc(r.finishDate)}</td><td>${esc(String(r.days))}</td><td>${esc(String(r.words))}</td><td>${Number(r.hitRate).toFixed(2)}%</td><td>${esc(String(r.levelPlus))}</td><td>${esc(String(r.maxLevel))}</td>`;
+        tr.innerHTML = `<td>${esc(String(r.round))}</td><td>${esc(r.tag === 'all' ? 'All' : r.tag)}</td><td>${esc(r.finishDate)}</td><td>${esc(String(r.days))}</td><td>${esc(String(r.words))}</td><td>${Number(r.hitRate).toFixed(2)}%</td><td>${esc(String(r.levelPlus))}</td><td>${esc(String(r.maxLevel))}</td><td class="col-narrow">${(r.tries && triesTotal(r.tries) > 0) ? '<button class="tries-cell" onclick="showRoundTries(' + idx + ')" aria-label="Attempts">' + pieIconSvg(r.tries, 20, null) + '</button>' : '<span style="color:var(--ink-faint)">–</span>'}</td>`;
         tbody.appendChild(tr);
       });
     }
@@ -1136,6 +1243,8 @@ function renderStats(stats, replay) {
   setOdo(document.getElementById('home-correct'),  stats.correct, replay);
   setOdo(document.getElementById('home-wrong'),    stats.wrong, replay);
   setOdo(document.getElementById('home-count-plus'), stats.countPlus, replay);
+  homeTries = stats.tries || null;
+  document.getElementById('home-pie').innerHTML = pieIconSvg(homeTries, 16, '#1a1a1a');
   document.getElementById('home-progress-fill').style.width = Math.min(pctNum, 100) + '%';
   setOdo(document.getElementById('home-day'), 'Day ' + (stats.days || 0), replay);
   setOdo(document.getElementById('main-day'), 'Day ' + (stats.days || 0), replay);   // quiz-screen pill follows Home, so starting a quiz never rolls it
