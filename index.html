@@ -760,7 +760,7 @@ function triesPieSvg(t) {
     if (o.f >= 0.22) {
       const p = o.f > 0.999 ? [cx, cy] : piePt(cx, cy, R * 0.56, o.mid);
       s += `<text x="${p[0].toFixed(1)}" y="${(p[1] - 2).toFixed(1)}" text-anchor="middle" font-size="13" font-weight="600" fill="#fff">${TRY_NAMES[o.i]}</text>` +
-           `<text x="${p[0].toFixed(1)}" y="${(p[1] + 14).toFixed(1)}" text-anchor="middle" font-size="12" fill="#fff">${o.n} · ${pct(o.n)}</text>`;
+           `<text x="${p[0].toFixed(1)}" y="${(p[1] + 14).toFixed(1)}" text-anchor="middle" font-size="12" fill="#fff">${o.n} (${pct(o.n)})</text>`;
       return;
     }
     let side = Math.sin(o.mid) >= 0 ? 1 : -1;
@@ -772,9 +772,9 @@ function triesPieSvg(t) {
     }
     used[side].push(y);
     const lx = cx + side * (R + 16), anchor = side > 0 ? 'start' : 'end';
-    s += `<polyline points="${edge[0].toFixed(1)},${edge[1].toFixed(1)} ${elbow[0].toFixed(1)},${elbow[1].toFixed(1)} ${lx - side * 4},${(y - 4).toFixed(1)}" fill="none" stroke="${TRY_COL[o.i]}" stroke-width="1.5"/>` +
+    s += `<polyline points="${edge[0].toFixed(1)},${edge[1].toFixed(1)} ${elbow[0].toFixed(1)},${elbow[1].toFixed(1)} ${lx - side * 4},${(y - 4).toFixed(1)}" fill="none" stroke="${TRY_COL[o.i]}" stroke-width="0.75"/>` +
          `<text x="${lx}" y="${y.toFixed(1)}" text-anchor="${anchor}" font-size="13" font-weight="600" fill="#1a1a1a">${TRY_NAMES[o.i]}</text>` +
-         `<text x="${lx}" y="${(y + 16).toFixed(1)}" text-anchor="${anchor}" font-size="12" fill="#666">${o.n} · ${pct(o.n)}</text>`;
+         `<text x="${lx}" y="${(y + 16).toFixed(1)}" text-anchor="${anchor}" font-size="12" fill="#666">${o.n} (${pct(o.n)})</text>`;
   });
   return `<svg width="100%" style="max-width:360px" viewBox="0 0 360 280" role="img" aria-label="Attempts pie chart">${s}</svg>`;
 }
